@@ -1,0 +1,11 @@
+name: Idea or request
+description: Suggest a change or a new feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like
+      description: Describe the change and what it would be used for.
+    validations:
+      required: true

@@ -1,0 +1,59 @@
+name: Bug report
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a city
+        2. ...
+    validations:
+      required: false
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen
+      options:
+        - In the game
+        - In the installer (ZeusPatcher.exe)
+    validations:
+      required: true
+  - type: input
+    id: resolution
+    attributes:
+      label: Game resolution
+      placeholder: 1920x1080
+    validations:
+      required: false
+  - type: input
+    id: system
+    attributes:
+      label: Windows version, or Wine / CrossOver version
+      placeholder: Windows 11 23H2
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Patch version
+      description: The release you downloaded.
+      placeholder: "1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: ZeusPatcher.log
+      description: For installer problems, paste the contents of `ZeusPatcher.log` (it is next to `ZeusPatcher.exe`).
+      render: text
+    validations:
+      required: false
