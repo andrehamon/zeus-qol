@@ -98,6 +98,10 @@ Every PNG in `Data\Images` is one picture that the game scales to cover the scre
 
 The source of the installer and of the game patch is in this repository. [BUILDING.md](BUILDING.md) explains how to rebuild both from the original files and compare them with the release byte for byte, and what the code does and does not touch.
 
+## Licence
+
+The source code in `build/` is released under the [GNU General Public License v3.0](LICENSE).
+
 ## Credits
 
 - **Widescreen resolutions:** the per-resolution screen values come from the widescreen patch [Zeus and Poseidon Full HD - many resolutions](https://www.moddb.com/mods/zeus-and-poseidon-full-hd-enfr/downloads/zeus-and-poseidon-full-hd-many-resolution) by Gazatus.
