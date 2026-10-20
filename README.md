@@ -20,8 +20,6 @@ You need your own copy of the game. This patch contains no game files; it change
 
 ## Screenshots
 
-All screenshots were taken at 1680x1050.
-
 ![The main menu with the new full-screen art](docs/images/main-menu-upscaled-art.png)
 *Main menu with the full-screen art.*
 
@@ -83,7 +81,7 @@ Every PNG in `Data\Images` is one picture that the game scales to cover the scre
 
 ## Known limitations
 
-- Developed and tested under Wine (CrossOver) on macOS, mostly at 1680x1050. It has not been tested on real Windows yet.
+- Developed and tested under Wine (CrossOver) on macOS. It has not been tested on real Windows yet.
 - At 1280x1024 the world map is wider than the screen and is cut off at one side.
 - On a Mac under Wine, Export City Image saves to the macOS Desktop.
 
