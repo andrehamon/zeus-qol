@@ -94,6 +94,15 @@ Every PNG in `Data\Images` is one picture that the game scales to cover the scre
 - At 1280x1024 the world map is wider than the screen and is cut off at one side.
 - On a Mac under Wine, Export City Image saves to the macOS Desktop.
 
+## Source code
+
+The source of the installer and of the game patch is in this repository. [BUILDING.md](BUILDING.md) explains how to rebuild both from the original files and compare them with the release byte for byte, and what the code does and does not touch.
+
+## Credits
+
+- **Widescreen resolutions:** the per-resolution screen values come from the widescreen patch [Zeus and Poseidon Full HD - many resolutions](https://www.moddb.com/mods/zeus-and-poseidon-full-hd-enfr/downloads/zeus-and-poseidon-full-hd-many-resolution) by Gazatus.
+- **Animation fix:** the animation bytes come from the [Unofficial Poseidon animation fix patch (widescreen edition)](https://zeus.heavengames.com/downloads/showfile.php?fileid=974) on HeavenGames: the fix is by Pecunia and the patcher by Jackfuste (WSGF).
+
 ## Support
 
 If you like the patch, you can support its development:

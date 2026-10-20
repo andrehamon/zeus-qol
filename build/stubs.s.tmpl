@@ -1,0 +1,2807 @@
+# Runtime resolution switcher for Zeus + Poseidon (see build_exe.py).
+# Assembled with clang (AT&T syntax, i386) and placed in the new .wpat section.
+# @@ placeholders are filled in by build_exe.py.
+
+.set BASE, @@BASE@@
+.set NUM, @@NUM@@
+.set ENTSZ, @@ENTSZ@@
+.set FILTER, @@FILTER@@        # 1 = F7 skips resolutions larger than the desktop
+
+.macro CALLABS t
+ .byte 0xE8
+ .long \t - (BASE + (. - start) + 4)
+.endm
+.macro JEABS t
+ .byte 0x0F, 0x84
+ .long \t - (BASE + (. - start) + 4)
+.endm
+.macro JMPABS t
+ .byte 0xE9
+ .long \t - (BASE + (. - start) + 4)
+.endm
+
+.set CUR_R,   BASE + (cur_r   - start)
+.set MODE_ARG, BASE + (mode_arg - start)
+.set C_BUILD, @@C_BUILD@@          # C module entry points (cmod/mapcomp.c, linked behind the stubs)
+.set C_LOAD,  @@C_LOAD@@
+.set C_IMAGE, @@C_IMAGE@@
+.set C_INTRO, @@C_INTRO@@
+.set C_VBLIT, @@C_VBLIT@@
+.set C_ZBUF, @@C_ZBUF@@          # city zoom (cmod/mapcomp.c cm_z*)
+.set C_ZOOM, @@C_ZOOM@@
+.set C_ZDIMS, @@C_ZDIMS@@
+.set C_ZMIN, @@C_ZMIN@@
+.set C_ZSHIFT, @@C_ZSHIFT@@
+.set C_EXPORT, @@C_EXPORT@@         # city image export (cm_export)
+.set LAST_R,  BASE + (last_r  - start)
+.set LOADED,  BASE + (loaded  - start)
+.set DSW,     BASE + (dsw     - start)
+.set DSH,     BASE + (dsh     - start)
+.set RESBUF,  BASE + (resbuf  - start)
+.set RESNAME, BASE + (resname - start)
+.set INTRO_PATH, BASE + (introname - start)
+.set RANGES,  BASE + (ranges  - start)
+.set ENTRIES, BASE + (entries - start)
+.set DBG,     BASE + (dbg     - start)
+.set DBGNAME, BASE + (dbgname - start)
+.set RING,    BASE + (ring    - start)
+.set RINGIDX, BASE + (ringidx - start)
+.set BADMASK, BASE + (badmask - start)
+.set SELECT_R, BASE + (select_r - start)
+.set DLGROWS, BASE + (dlgrows - start)
+.set STRPTRS, BASE + (strptrs - start)
+.set NBTN, @@NBTN@@               # records of both click tables (the longer page)
+.set NDLG, @@NDLG@@               # records of the Display page
+.set NSTR, @@NSTR@@
+.set FW, 0x16
+.set FH, 0x14
+.set LASTERR, BASE + (lasterr - start)
+.set TITLEBUF, BASE + (titlebuf - start)
+.set HEXTAB,  BASE + (hextab  - start)
+.set STR_OK,  BASE + (str_ok  - start)
+.set STR_TRY, BASE + (str_try - start)
+.set STR_REF, BASE + (str_ref - start)
+.set STR_R,   BASE + (str_r   - start)
+.set STR_M,   BASE + (str_m   - start)
+.set STR_ERR, BASE + (str_err - start)
+.set STR_BAD, BASE + (str_bad - start)
+.set F7CNT,   BASE + (f7cnt   - start)
+.set GOODCNT, BASE + (goodcnt - start)
+.set REVCNT,  BASE + (revcnt  - start)
+
+# world-map fit (see mapfit.py)
+.set FITTAB,  BASE + (fittab  - start)
+.set FP,      BASE + (fp      - start)      # +0 S16 +4 OX +8 OY +12 OFF
+.set SCALED,  BASE + (scaled  - start)
+.set RSDEPTH, BASE + (rsdepth - start)
+.set RSTACK,  BASE + (rstack  - start)
+.set CITYSH,  BASE + (cityshadow - start)
+.set PATHHDR, BASE + (pathhdr - start)
+.set PSHADOW, BASE + (end     - start)      # BSS after the blob: CAP points x 4 bytes
+.set EPI,     BASE + (Epi     - start)
+.set CAP, @@CAP@@
+.set G_MAPW,  0x5fb7ac       # loaded map image size (set by 0x460580)
+.set G_MAPH,  0x5fb7b0
+.set G_MAPIDX, 0x90311c      # 1..14: Greece01..10, Poseidon01..04
+
+# game globals / imports
+.set G_MODE,   0xf2a770      # 1=640x480 2=800x600 3=hi-res
+.set G_UISTATE,0xf2a6dd
+.set IMP_GETSYSTEMMETRICS, 0x5d81fc
+.set IMP_GETASYNCKEYSTATE, 0x5d81d4
+.set G_JPGCACHEMODE, 0xf13470
+.set G_HWND, 0xf2ab18
+.set IMP_SENDMESSAGEA, 0x5d8190
+
+# city zoom (see NOTES.md "City zoom")
+.set ZOOMP,   BASE + (zoomp   - start)      # magnification the player chose, percent (50..200); 100 = off
+.set ZAPPLIED, BASE + (zapplied - start)    # magnification the game's view counts are set for right now
+.set ZVALID,  BASE + (zvalid  - start)
+.set ZK,      BASE + (zk      - start)      # canvas px per real px, 16.16
+.set ZOC,     BASE + (zoc     - start)
+.set ZOR,     BASE + (zor     - start)
+.set ZARGS,   BASE + (zargs   - start)      # the 8 args of the city view setter 0x449e50 as the game gave them (the real view)
+.set ZBUF,    BASE + (zbuf    - start)
+.set ZVW,     BASE + (zvw     - start)
+.set ZVH,     BASE + (zvh     - start)
+.set ZSAVE,   BASE + (zsave   - start)
+.set ZRAWX,   BASE + (zrawx   - start)      # the mouse as the game polled it (before the zoom mapping)
+.set ZRAWY,   BASE + (zrawy   - start)
+.set ZACC,    BASE + (zacc    - start)
+.set ZTICK,   BASE + (ztick   - start)
+.set ZLEVELS, BASE + (zlevels - start)
+.set ZN, 11
+.set ZVX,     BASE + (zvx     - start)      # the mouse as the MAP picking code sees it (zoom-mapped over the map); everything else reads the raw [0xf2a738] / [0xf2a734]
+.set ZVY,     BASE + (zvy     - start)
+.set ZNSLOT,  BASE + (znslot  - start)
+.set ZNTICK,  BASE + (zntick  - start)
+.set ZNCNT,   BASE + (zncnt   - start)
+.set ZFMT,    BASE + (zfmt    - start)
+.set ZTEMP,   BASE + (ztemp   - start)
+.set ZDC,     BASE + (zdc     - start)
+.set ZDR,     BASE + (zdr     - start)
+.set ZNEWP,   BASE + (znewp   - start)
+.set TLAST,   BASE + (tlast   - start)
+
+# keyboard controls (Options > Keyboard Controls)
+.set KMAP,    BASE + (kmap    - start)      # physical VK -> VK the game sees (a permutation)
+.set KINV,    BASE + (kinv    - start)
+.set KTMPINV, BASE + (ktmpinv - start)
+.set KCAP,    BASE + (kcap    - start)      # action row waiting for a key, -1 = none
+.set KPAGE,   BASE + (kpage   - start)      # 1 = screen 0x0a shows the keyboard page instead of the display page
+.set KWANT,   BASE + (kwant   - start)
+.set DRAW_ROWS, BASE + (draw_rows - start)
+.set DRAW_N,  BASE + (draw_n  - start)
+.set DRAW_FH, BASE + (draw_fh - start)
+.set DRAW_FW, BASE + (draw_fw - start)       # frame width (16 px blocks) and x offset of the page being drawn
+.set DRAW_FX, BASE + (draw_fx - start)
+.set DRAW_TITLE, BASE + (draw_title - start)
+.set DRAW_TDX, BASE + (draw_tdx - start)       # title position offset (the long keyboard title is left-aligned: shift it to centre)
+.set DRAW_TDY, BASE + (draw_tdy - start)
+.set KBUF,    BASE + (kbuf    - start)
+.set KNAME,   BASE + (kname   - start)
+.set KCH,     BASE + (kch     - start)
+.set KSCREENS, BASE + (kscreens - start)
+.set ACTVK,   BASE + (actvk   - start)
+.set ACTPTRS, BASE + (actptrs - start)
+.set KNAMES,  BASE + (knames  - start)
+.set KLBL,    BASE + (klbl    - start)
+.set DWIDGETS, BASE + (dwidgets - start)
+.set KWIDGETS, BASE + (kwidgets - start)
+.set WIDGETS, BASE + (widgets - start)
+.set KROWS,   BASE + (krows   - start)
+.set STR_QM,  BASE + (str_qm  - start)
+.set STR_NONE, BASE + (str_none - start)
+.set STR_SPACE, BASE + (str_space - start)
+.set STR_MINUS, BASE + (str_minus - start)
+# Export City Image (page 2 of the Display dialog)
+.set EWIDGETS, BASE + (ewidgets - start)
+.set EROWS,   BASE + (erows   - start)
+.set EFW, @@EFW@@
+.set EFH, @@EFH@@
+.set EFX, @@EFX@@
+.set ELABX, @@ELABX@@
+.set EBARX, @@EBARX@@
+.set EHINTY, @@EHINTY@@
+.set ETITLE, @@ETITLE@@           # STRPTRS index of the page's title string (Save / Cancel / empty follow)
+.set STR_EXPMENU, BASE + (str_expmenu - start)
+.set STR_EFILE, BASE + (str_efile - start)
+.set STR_EHINT, BASE + (str_ehint - start)
+.set STR_EPNG, BASE + (str_epng - start)
+.set STR_EXPOK, BASE + (str_expok - start)
+.set STR_EXPERR, BASE + (str_experr - start)
+.set STR_EBAD, BASE + (str_ebad - start)
+.set EXPNAME, BASE + (expname - start)
+.set EXPLEN,  BASE + (explen  - start)
+.set EXPPEND, BASE + (exppend - start)
+.set EXPRES,  BASE + (expres  - start)
+.set ZEXOLD,  BASE + (zexold  - start)
+.set EXPDISP, BASE + (expdisp - start)
+.set EXPHINT, BASE + (exphint - start)
+.set EXPPATH, BASE + (exppath - start)
+.set EXPARGS, BASE + (expargs - start)
+.set KARROWS, BASE + (karrows - start)
+.set STR_WASD, BASE + (str_wasd - start)
+.set STR_ARROWS, BASE + (str_arrows - start)
+.set SCRL, BASE + (scrl - start)
+.set SCRA, BASE + (scra - start)
+.set STR_KHINT, BASE + (str_khint - start)
+.set STR_PRESS, BASE + (str_press - start)
+.set STR_DASH, BASE + (str_dash - start)
+.set STR_KMENU, BASE + (str_kmenu - start)
+.set NACT, @@NACT@@
+.set NKBTN, @@NKBTN@@
+.set KFH, @@KFH@@
+.set KFW, @@KFW@@                 # keyboard page: wider frame, labels on the left of the buttons
+.set KFX, @@KFX@@
+.set KHINTX, @@KHINTX@@
+.set KHINTY, @@KHINTY@@
+.set KSCR_N, @@KSCR_N@@
+.set KTITLE, @@KTITLE@@         # STRPTRS index of the "Keyboard Controls" string
+.set KLBLSZ, 48
+
+.text
+start:
+# ---------------------------------------------------------------- data
+cur_r:   .long 0
+mode_arg: .long 0         # mode ApplyMode was called for (the C map cache keys on it)
+last_r:  .long 0
+loaded:  .long 0
+dsw:     .long 0
+dsh:     .long 0
+resbuf:  .space 64
+resname: .asciz "Zeus.res"
+dbgname: .asciz "Zeus.dbg"
+introname: .asciz "Binks\\Zeus_Intro_HD.bik"       # same file cm_intro reads the header of
+.balign 4
+dbg:     .space 48
+ring:    .space 8192
+ringidx: .long 0
+lasterr: .long 0
+select_r: .long -1       # set by the Display-options buttons: entry to switch to (consumed by StubF7)
+titlebuf: .space 128
+hextab:  .ascii "0123456789ABCDEF"
+str_ok:  .asciz "OK "
+str_try: .asciz "TRY "
+str_ref: .asciz "REFUSED "
+str_r:   .asciz " R"
+str_m:   .asciz " M"
+str_err: .asciz " err=0x"
+str_bad: .asciz " bad=0x"
+.balign 4
+badmask: .long 0       # bit n set = resolution n was refused by SetDisplayMode this session
+f7cnt:   .long 0
+goodcnt: .long 0
+revcnt:  .long 0
+fp:      .long 0, 0, 0, 0
+scaled:  .long 0
+rsdepth: .long 0
+rstack:  .space 64
+cityshadow: .space 800
+zoomp:    .long 100
+zapplied: .long 100
+zvalid:   .long 0
+zk:       .long 0x10000
+zoc:      .long 0
+zor:      .long 0
+zargs:    .long 0, 0, 0, 0, 0, 0, 0, 0
+zbuf:     .long 0
+zvw:      .long 0
+zvh:      .long 0
+zsave:    .long 0, 0, 0, 0, 0, 0
+zrawx:    .long 0
+zvx:      .long 0
+zvy:      .long 0
+zrawy:    .long 0
+zacc:     .long 0
+ztick:    .long 0
+ztemp:    .long 0
+znslot:   .long -1
+zntick:   .long 0
+zncnt:    .long -1
+zfmt:     .asciz "Zoom %d%%"
+.balign 4
+zdc:      .long 0
+zdr:      .long 0
+znewp:    .long 100
+tlast:    .long 0, 0, 0, 0
+zlevels:  .long 50, 60, 70, 80, 90, 100, 115, 130, 150, 175, 200
+pathhdr: .space 2784
+.balign 4
+fittab:
+@@FITTAB@@
+.balign 4
+ranges:
+@@RANGES@@
+entries:
+@@ENTRIES@@
+.balign 4
+dlgrows:
+@@DLGROWS@@
+widgets:                         # ACTIVE click table of screen 0x0a (the game's 3 pushes point here); SetPage copies dwidgets / kwidgets over it
+@@WIDGETS@@
+dwidgets:
+@@WIDGETS@@
+kwidgets:
+@@KWIDGETS@@
+ewidgets:
+@@EWIDGETS@@
+strptrs:
+@@STRPTRS@@
+@@STRINGS@@
+@@KDATA@@
+
+# ---------------------------------------------------------------- code
+.balign 16
+# in: eax = mode.  Writes table[mode==3 ? cur_r : 0] into .text.  Clobbers eax ecx edx esi edi.
+ApplyMode:
+  movl %eax, MODE_ARG
+  cmpl $3, %eax
+  movl $0, %eax
+  jne 1f
+  movl CUR_R, %eax
+1:
+  imull $ENTSZ, %eax, %eax
+  leal ENTRIES+24(%eax), %esi
+  movl $RANGES+4, %edx
+  pushl %ebx
+  movl RANGES, %ebx
+2:
+  movl (%edx), %edi
+  movl 4(%edx), %ecx
+  addl $8, %edx
+  rep movsb
+  decl %ebx
+  jnz 2b
+  popl %ebx
+  call InvalMap                   # also drop the cached world-map image (see below)
+  pushl MODE_ARG                  # (re)build the world-map composites for the new resolution
+  CALLABS C_BUILD
+  addl $4, %esp
+  ret
+
+GetDesktop:
+  pushl $0
+  call *IMP_GETSYSTEMMETRICS
+  movl %eax, DSW
+  pushl $1
+  call *IMP_GETSYSTEMMETRICS
+  movl %eax, DSH
+  ret
+
+# in: eax = index.  out: eax = 1 if entry fits the desktop (entry 0 always fits)
+Fits:
+.if FILTER == 0
+  movl BADMASK, %ecx
+  btl %eax, %ecx
+  jc 4f
+  movl $1, %eax
+  ret
+4:
+  xorl %eax, %eax
+  ret
+.endif
+  testl %eax, %eax
+  jz 3f
+  imull $ENTSZ, %eax, %eax
+  leal ENTRIES(%eax), %ecx
+  movl (%ecx), %eax
+  cmpl DSW, %eax
+  ja 4f
+  movl 4(%ecx), %eax
+  cmpl DSH, %eax
+  ja 4f
+3:
+  movl $1, %eax
+  ret
+4:
+  xorl %eax, %eax
+  ret
+
+# Idempotent: read Zeus.res once, clamp to desktop.
+EnsureLoaded:
+  cmpl $0, LOADED
+  jne 9f
+  movl $1, LOADED
+  call ResetKeys
+  call LoadKeys
+  call GetDesktop
+  pushl $RESBUF
+  pushl $RESNAME
+  CALLABS 0x50ac60
+  addl $8, %esp
+  testl %eax, %eax
+  jz 3f
+  cmpl $0x31535a52, RESBUF      # "RZS1"
+  jne 3f
+  movl RESBUF+4, %eax
+  cmpl $NUM, %eax
+  jae 3f
+  movl %eax, CUR_R
+3:
+  movl CUR_R, %eax
+  testl %eax, %eax
+  jz 5f
+  call Fits
+  testl %eax, %eax
+  jnz 5f
+  decl CUR_R
+  jmp 3b
+5:
+  movl CUR_R, %eax
+  movl %eax, LAST_R
+9:
+  ret
+
+# ---- window-title readout:  <prefix> WxH R<idx> M<mode> [err=0x........] bad=0x........
+# esi = dst; AppendStr: edx = src; AppendDec/AppendHex: eax = value.   All advance esi.
+AppendStr:
+1:
+  movb (%edx), %al
+  testb %al, %al
+  jz 2f
+  movb %al, (%esi)
+  incl %esi
+  incl %edx
+  jmp 1b
+2:
+  ret
+
+AppendDec:
+  pushl %ebx
+  movl $10, %ebx
+  xorl %ecx, %ecx
+1:
+  xorl %edx, %edx
+  divl %ebx
+  pushl %edx
+  incl %ecx
+  testl %eax, %eax
+  jnz 1b
+2:
+  popl %eax
+  addb $0x30, %al
+  movb %al, (%esi)
+  incl %esi
+  decl %ecx
+  jnz 2b
+  popl %ebx
+  ret
+
+AppendHex:
+  movl $8, %ecx
+1:
+  roll $4, %eax
+  movl %eax, %edx
+  andl $15, %edx
+  movb HEXTAB(%edx), %dl
+  movb %dl, (%esi)
+  incl %esi
+  decl %ecx
+  jnz 1b
+  ret
+
+# cdecl Title(char *prefix, int w, int h, int err).  Preserves all registers.
+Title:
+  pushal
+  movl 0x24(%esp), %eax
+  movl %eax, TLAST
+  movl 0x28(%esp), %eax
+  movl %eax, TLAST+4
+  movl 0x2c(%esp), %eax
+  movl %eax, TLAST+8
+  movl 0x30(%esp), %eax
+  movl %eax, TLAST+12
+  movl $TITLEBUF, %esi
+  movl 0x24(%esp), %edx
+  call AppendStr
+  movl 0x28(%esp), %eax
+  call AppendDec
+  movb $0x78, (%esi)
+  incl %esi
+  movl 0x2c(%esp), %eax
+  call AppendDec
+  movl $STR_R, %edx
+  call AppendStr
+  movl CUR_R, %eax
+  call AppendDec
+  movl $STR_M, %edx
+  call AppendStr
+  movl G_MODE, %eax
+  call AppendDec
+  movb $0x20, (%esi)
+  incl %esi
+  movb $0x5a, (%esi)
+  incl %esi
+  movl ZOOMP, %eax
+  call AppendDec
+  movl 0x30(%esp), %eax
+  testl %eax, %eax
+  jz 1f
+  movl $STR_ERR, %edx
+  call AppendStr
+  movl 0x30(%esp), %eax
+  call AppendHex
+1:
+  movl $STR_BAD, %edx
+  call AppendStr
+  movl BADMASK, %eax
+  call AppendHex
+  movb $0, (%esi)
+  pushl $TITLEBUF
+  pushl $0
+  pushl $0x0C                      # WM_SETTEXT
+  pushl G_HWND
+  call *IMP_SENDMESSAGEA
+  popal
+  ret
+
+# eax = event type, edx = arg.  Ring of 32 events x 8 dwords:
+#  type, arg, cur_r, mode, game W, game H, windowed flag, sequence number
+LogEv:
+  pushl %ebx
+  movl RINGIDX, %ebx
+  andl $255, %ebx
+  shll $5, %ebx
+  addl $RING, %ebx
+  movl %eax, (%ebx)
+  movl %edx, 4(%ebx)
+  movl CUR_R, %eax
+  movl %eax, 8(%ebx)
+  movl G_MODE, %eax
+  movl %eax, 12(%ebx)
+  movl 0xf2a6b4, %eax
+  movl %eax, 16(%ebx)
+  movl 0xf2a6b0, %eax
+  movl %eax, 20(%ebx)
+  movl 0xf2a764, %eax
+  movl %eax, 24(%ebx)
+  movl RINGIDX, %eax
+  movl %eax, 28(%ebx)
+  incl RINGIDX
+  popl %ebx
+  ret
+
+# Diagnostic record (44 bytes, little-endian dwords) written to Zeus.dbg:
+#  'DBG1', F7 presses, good displays, reverts, cur R, desktop W, desktop H, mode, last good R, game W, game H
+WriteDbg:
+  movl $0x31474244, DBG
+  movl F7CNT, %eax
+  movl %eax, DBG+4
+  movl GOODCNT, %eax
+  movl %eax, DBG+8
+  movl REVCNT, %eax
+  movl %eax, DBG+12
+  movl CUR_R, %eax
+  movl %eax, DBG+16
+  movl DSW, %eax
+  movl %eax, DBG+20
+  movl DSH, %eax
+  movl %eax, DBG+24
+  movl G_MODE, %eax
+  movl %eax, DBG+28
+  movl LAST_R, %eax
+  movl %eax, DBG+32
+  movl 0xf2a6b4, %eax
+  movl %eax, DBG+36
+  movl 0xf2a6b0, %eax
+  movl %eax, DBG+40
+  movl RINGIDX, %eax
+  movl %eax, DBG+44
+  pushl $8240
+  pushl $DBG
+  pushl $DBGNAME
+  CALLABS 0x50aef0
+  addl $12, %esp
+  ret
+
+SaveR:
+  movl $0x31535a52, RESBUF
+  movl CUR_R, %eax
+  movl %eax, RESBUF+4
+  pushl $8
+  pushl $RESBUF
+  pushl $RESNAME
+  CALLABS 0x50aef0
+  addl $12, %esp
+  ret
+
+# --- hook: 0x5c3932  call 0x50b980 (display init, reads mode from G_MODE)
+StubInit:
+  pushal
+  call EnsureLoaded
+  movl G_MODE, %edx
+  movl $5, %eax
+  call LogEv
+  movl G_MODE, %eax
+  call ApplyMode
+  call WriteDbg
+  popal
+  JMPABS 0x50b980
+
+# --- hooks: 0x50bd29 / 0x50c05d  call 0x50bcc0(mode)   [stack: ret, mode]
+StubSetMode:
+  pushal
+  call EnsureLoaded
+  movl 0x24(%esp), %edx
+  movl $4, %eax
+  call LogEv
+  movl 0x24(%esp), %eax
+  call ApplyMode
+  call WriteDbg
+  popal
+  JMPABS 0x50bcc0
+
+StubRevert:
+  pushal
+  call EnsureLoaded
+  movl LAST_R, %eax
+  movl %eax, CUR_R
+  movl $0, G_JPGCACHEMODE
+  incl REVCNT
+  movl 0x24(%esp), %edx
+  movl $3, %eax
+  call LogEv
+  call WriteDbg
+  movl 0x24(%esp), %eax
+  call ApplyMode
+  popal
+  JMPABS 0x50bcc0
+
+# --- hook: 0x50c0d3  mov [0xf9c140], ecx   (display mode confirmed good)
+StubGood:
+  movl %ecx, 0xf9c140
+  pushal
+  movl CUR_R, %eax
+  movl %eax, LAST_R
+  call SaveR
+  incl GOODCNT
+  movl 0x18(%esp), %edx            # saved ecx = mode that was confirmed
+  movl $2, %eax
+  call LogEv
+  call WriteDbg
+  pushl $0
+  pushl 0xf2a6b0
+  pushl 0xf2a6b4
+  pushl $STR_OK
+  call Title
+  addl $16, %esp
+  popal
+  ret
+
+# --- hook: 0x5c542d  F7 handler (was: push 3 / call ChangeMode)
+StubF7:
+  pushal
+  call EnsureLoaded
+  movl SELECT_R, %edi            # entry picked in the Display-options dialog, or -1
+  movl $-1, SELECT_R
+  movb G_UISTATE, %al
+  cmpb $0x0f, %al
+  je 8f
+  cmpb $0x0e, %al
+  je 8f
+  cmpb $0x21, %al
+  je 8f
+  cmpb $0x05, %al
+  je 8f
+  testl %edi, %edi
+  js 0f
+  movl %edi, %ebx
+  jmp 5f
+0:
+  cmpl $3, G_MODE
+  jne 8f
+  call GetDesktop
+  pushl $0x10                    # VK_SHIFT -> previous resolution
+  call *IMP_GETASYNCKEYSTATE
+  movl $1, %edx
+  testl $0x8000, %eax
+  jz 1f
+  movl $-1, %edx
+1:
+  movl CUR_R, %ebx
+  movl $NUM, %esi
+2:
+  addl %edx, %ebx
+  cmpl $NUM, %ebx
+  jb 4f
+  testl %ebx, %ebx
+  js 3f
+  xorl %ebx, %ebx
+  jmp 4f
+3:
+  movl $NUM-1, %ebx
+4:
+  movl %ebx, %eax
+  call Fits
+  testl %eax, %eax
+  jnz 5f
+  decl %esi
+  jnz 2b
+  jmp 8f
+5:
+  movl %ebx, CUR_R
+  movl $0, G_JPGCACHEMODE
+  movl %ebx, %eax
+  imull $ENTSZ, %eax, %eax
+  leal ENTRIES(%eax), %ecx
+  pushl $0
+  pushl 4(%ecx)
+  pushl (%ecx)
+  pushl $STR_TRY
+  call Title
+  addl $16, %esp         # image cache is keyed on mode only: force a reload for the new size
+8:
+  incl F7CNT
+  call GetDesktop
+  movl CUR_R, %edx
+  movl $1, %eax
+  call LogEv
+  call WriteDbg
+  popal
+  pushl $3
+  CALLABS 0x5c4a30
+  JMPABS 0x5c5434
+
+# --- hook: 0x434029  test eax,eax / je 0x4340c8   right after IDirectDraw::SetDisplayMode(W,H,16)
+# success -> original target.  Failure of a hi-res entry: remember it as bad and retry plain 1024x768
+# instead of the game's 800x600 fallback.  Any other failure: the game's original fallback ladder.
+StubSDM:
+  pushal
+  movl %eax, %edx
+  movl $6, %eax
+  call LogEv
+  call WriteDbg
+  popal
+  testl %eax, %eax
+  JEABS 0x4340c8
+  movl %eax, LASTERR
+  movl G_MODE, %eax
+  cmpl $3, %eax
+  jne 1f
+  movl CUR_R, %ecx
+  testl %ecx, %ecx
+  jz 1f
+  movl $1, %edx
+  shll %cl, %edx
+  orl %edx, BADMASK
+  pushal
+  movl CUR_R, %eax
+  imull $ENTSZ, %eax, %eax
+  leal ENTRIES(%eax), %ecx
+  pushl LASTERR
+  pushl 4(%ecx)
+  pushl (%ecx)
+  pushl $STR_REF
+  call Title
+  addl $16, %esp
+  popal
+  movl $0, CUR_R
+  movl $0, G_JPGCACHEMODE
+  pushl $3
+  JMPABS 0x434046
+1:
+  cmpl $1, %eax
+  je 2f
+  cmpl $3, %eax
+  je 2f
+  pushl $3
+  JMPABS 0x434046
+2:
+  pushl $2
+  JMPABS 0x434046
+
+# --- hook: 0x507bf0  GetText(group, idx): serve our own labels for group 0x2a, idx >= 100
+StubGetText:
+  movl 4(%esp), %eax
+  cmpl $0x2a, %eax
+  je 2f
+  cmpl $1, %eax                   # File menu: item 100 = Export City Image
+  jne 6f
+  cmpl $100, 8(%esp)
+  jne 1f
+  movl $STR_EXPMENU, %eax
+  ret
+6:
+  cmpl $2, %eax                   # Options menu: item 100 = Keyboard Controls
+  jne 1f
+  cmpl $100, 8(%esp)
+  jne 1f
+  movl $STR_KMENU, %eax
+  ret
+2:
+  movl 8(%esp), %ecx
+  subl $100, %ecx
+  cmpl $NSTR, %ecx
+  jae 1f
+  movl STRPTRS(,%ecx,4), %eax
+  ret
+1:
+  movl 0xf29f64, %edx
+  JMPABS 0x507bfa
+
+# --- Display-options button handler for the resolution entries.  [0xf135f8] = button param = 100 + entry.
+ResClick:
+  movl 0xf135f8, %eax
+  subl $100, %eax
+  movl %eax, SELECT_R
+  pushl $0
+  pushl $0x76                      # VK_F7 -> StubF7 switches to SELECT_R
+  pushl $0x100
+  pushl G_HWND
+  call *0x5d8218                   # PostMessageA
+  movb 0xf9f9a8, %cl
+  movb %cl, G_UISTATE
+  ret
+
+# --- hook: 0x59af60  Display-options dialog (replaces the 4-button original)
+MyDisplayDraw:
+  pushl %ebx
+  pushl %esi
+  pushl %edi
+  pushl %ebp
+  call PickPage
+  movl 0x12bc820, %eax
+  cmpl $1, %eax
+  movl 0x12afbec, %eax
+  jl 1f
+  addl $8, %eax
+1:
+  movl 4(%eax), %esi               # label colour
+  pushl 0xf2a6a8                   # frame
+  pushl 0xf2a6ac
+  pushl DRAW_FH
+  pushl DRAW_FW
+  movl 0xf2a6a8, %eax
+  addl $0x50, %eax
+  pushl %eax
+  movl 0xf2a6ac, %eax
+  addl DRAW_FX, %eax
+  pushl %eax
+  CALLABS 0x512ff0
+  addl $0x18, %esp
+  xorl %ebx, %ebx                  # button sprites
+2:
+  movl %ebx, %eax
+  shll $5, %eax
+  addl DRAW_ROWS, %eax
+  movl %eax, %edi
+  movl 0x781844, %ecx
+  leal 1(%ebx), %edx
+  xorl %eax, %eax
+  cmpl %edx, %ecx
+  setne %al
+  incl %eax
+  pushl 0xf2a6a8
+  pushl 0xf2a6ac
+  pushl %eax
+  pushl $0
+  pushl 8(%edi)
+  movl 4(%edi), %eax
+  addl 0xf2a6a8, %eax
+  pushl %eax
+  movl (%edi), %eax
+  addl 0xf2a6ac, %eax
+  pushl %eax
+  pushl $2
+  CALLABS 0x512d80
+  addl $0x20, %esp
+  incl %ebx
+  cmpl DRAW_N, %ebx
+  jb 2b
+  movl 0x12bc820, %eax             # title
+  cmpl $6, %eax
+  movl 0x12afbec, %eax
+  jl 3f
+  addl $0x30, %eax
+3:
+  movl 4(%eax), %eax
+  pushl 0xf2a6a8
+  pushl 0xf2a6ac
+  pushl $0
+  pushl %eax
+  pushl $0xe0
+  movl 0xf2a6a8, %eax
+  addl $0x5e, %eax
+  addl DRAW_TDY, %eax
+  pushl %eax
+  movl 0xf2a6ac, %eax
+  addl $0xa0, %eax
+  addl DRAW_TDX, %eax
+  pushl %eax
+  pushl DRAW_TITLE
+  pushl $0x2a
+  CALLABS 0x512b50
+  addl $0x24, %esp
+  xorl %ebx, %ebx                  # labels
+4:
+  movl %ebx, %eax
+  shll $5, %eax
+  addl DRAW_ROWS, %eax
+  movl %eax, %edi
+  movl 0x781844, %ecx
+  leal 1(%ebx), %edx
+  xorl %ebp, %ebp
+  cmpl %edx, %ecx
+  je 5f
+  movl $0xffff07fe, %ebp
+5:
+  addl $0xfac1, %ebp
+  pushl 0xf2a6a8
+  pushl 0xf2a6ac
+  pushl %ebp
+  pushl %esi
+  pushl 24(%edi)
+  movl 20(%edi), %eax
+  addl 0xf2a6a8, %eax
+  pushl %eax
+  movl 16(%edi), %eax
+  addl 0xf2a6ac, %eax
+  pushl %eax
+  movl 12(%edi), %eax
+  cmpl $-1, %eax
+  jne 6f
+  movl 0xf2a764, %ecx              # Full screen / Windowed screen toggle label
+  movl $2, %eax
+  testl %ecx, %ecx
+  jnz 6f
+  movl $1, %eax
+6:
+  pushl %eax
+  pushl $0x2a
+  CALLABS 0x512b50
+  addl $0x24, %esp
+  incl %ebx
+  cmpl DRAW_N, %ebx
+  jb 4b
+  cmpl $2, KPAGE
+  je .Lpage2draw
+  cmpl $0, KPAGE
+  je 8f
+  xorl %ebx, %ebx                  # keyboard page: the action names, left of their buttons (draw_text 0x508800(str, x, y, font, colour, 0))
+7:
+  movl %ebx, %eax
+  shll $5, %eax
+  addl DRAW_ROWS, %eax
+  movl %eax, %edi
+  pushl $0
+  pushl $0x2bf
+  pushl %esi
+  movl 20(%edi), %eax              # text y (the row 0 button sprite is off screen: its sy is not usable)
+  addl 0xf2a6a8, %eax
+  pushl %eax
+  movl 0xf2a6ac, %eax
+  addl 28(%edi), %eax
+  pushl %eax
+  pushl ACTPTRS(,%ebx,4)
+  CALLABS 0x508800
+  addl $0x18, %esp
+  incl %ebx
+  cmpl $NACT, %ebx
+  jb 7b
+  pushl $2                         # "Map scrolling": the two red arrow sprites (the game's own click-table drawer 0x431530(x, y, table, count))
+  pushl $KARROWS
+  pushl 0xf2a6a8
+  pushl 0xf2a6ac
+  CALLABS 0x431530
+  addl $16, %esp
+  pushl $0                         # hint under the buttons
+  pushl $0x2bf
+  pushl %esi
+  movl 0xf2a6a8, %eax
+  addl $KHINTY, %eax
+  pushl %eax
+  movl 0xf2a6ac, %eax
+  addl $KHINTX, %eax
+  pushl %eax
+  pushl $STR_KHINT
+  CALLABS 0x508800
+  addl $0x18, %esp
+  jmp 8f
+.Lpage2draw:                       # export page: "File name:", the typed name, the hint (draw_text 0x508800(str, x, y, font, colour, 0))
+  pushl $0
+  pushl $0x2bf
+  pushl %esi
+  movl 0xf2a6a8, %eax
+  addl $0x8c, %eax
+  pushl %eax
+  movl 0xf2a6ac, %eax
+  addl $ELABX, %eax
+  pushl %eax
+  pushl $STR_EFILE
+  CALLABS 0x508800
+  addl $0x18, %esp
+  pushl $0
+  pushl $0xffff
+  pushl %esi
+  movl 0xf2a6a8, %eax
+  addl $0x8c, %eax
+  pushl %eax
+  movl 0xf2a6ac, %eax
+  addl $EBARX+10, %eax
+  pushl %eax
+  pushl $EXPDISP
+  CALLABS 0x508800
+  addl $0x18, %esp
+  pushl $0
+  pushl $0x2bf
+  pushl %esi
+  movl 0xf2a6a8, %eax
+  addl $EHINTY, %eax
+  pushl %eax
+  movl 0xf2a6ac, %eax
+  addl $ELABX, %eax
+  pushl %eax
+  pushl $EXPHINT
+  CALLABS 0x508800
+  addl $0x18, %esp
+8:
+  CALLABS 0x59fcf0
+  movl $0x32, 0x10dfee8
+  popl %ebp
+  popl %edi
+  popl %esi
+  popl %ebx
+  ret
+
+# ======================================================================== keyboard controls
+# kmap[physical VK] = VK the game sees (always a permutation; non-remappable keys map to themselves), kinv = its inverse.
+# Saved in Zeus.keys ("KZS1" + 256 bytes).
+
+# in: eax = VK.  out: eax = 1 if the key may be remapped (A-Z, 0-9, Space, '-', PgUp PgDn End Home arrows, Ins, Del).  Only eax changes.
+KeyOk:
+  cmpl $0x20, %eax
+  je 8f
+  cmpl $0xbd, %eax
+  je 8f
+  cmpl $0x30, %eax
+  jb 1f
+  cmpl $0x39, %eax
+  jbe 8f
+  cmpl $0x41, %eax
+  jb 9f
+  cmpl $0x5a, %eax
+  jbe 8f
+  jmp 9f
+1:
+  cmpl $0x21, %eax
+  jb 9f
+  cmpl $0x28, %eax
+  jbe 8f
+  cmpl $0x2d, %eax
+  je 8f
+  cmpl $0x2e, %eax
+  je 8f
+9:
+  xorl %eax, %eax
+  ret
+8:
+  movl $1, %eax
+  ret
+
+ResetKeys:
+  pushl %ecx
+  xorl %ecx, %ecx
+1:
+  movb %cl, KMAP(%ecx)
+  movb %cl, KINV(%ecx)
+  incl %ecx
+  cmpl $256, %ecx
+  jb 1b
+  popl %ecx
+  ret
+
+# kinv = the inverse of kmap (game VK -> the physical key that produces it, 0 = none)
+RebuildInv:
+  pushal
+  movl $KINV, %edi
+  xorl %eax, %eax
+  movl $64, %ecx
+  rep stosl
+  xorl %esi, %esi
+1:
+  movzbl KMAP(%esi), %eax
+  testl %eax, %eax
+  jz 2f
+  movl %esi, %ecx
+  movb %cl, KINV(%eax)
+2:
+  incl %esi
+  cmpl $256, %esi
+  jb 1b
+  popal
+  ret
+
+# in: eax = VK.  out: eax = 1 if it is the key of one of the keyboard-page actions.  Only eax changes.
+IsAct:
+  pushl %ecx
+  leal -0x25(%eax), %ecx          # the arrow keys: "Map scrolling"
+  cmpl $3, %ecx
+  jbe 8f
+  xorl %ecx, %ecx
+1:
+  cmpb %al, ACTVK(%ecx)
+  je 8f
+  incl %ecx
+  cmpl $NACT, %ecx
+  jb 1b
+  xorl %eax, %eax
+  popl %ecx
+  ret
+8:
+  movl $1, %eax
+  popl %ecx
+  ret
+
+# Zeus.keys -> kmap/kinv ("KZS1" permutation or "KZS2": kmap[physical] = game VK, 0 = no function), only if every entry is 0 / itself / a pair
+# of remappable keys and no game key is produced twice.
+LoadKeys:
+  pushal
+  pushl $KBUF
+  pushl $KNAME
+  CALLABS 0x50ac60
+  addl $8, %esp
+  testl %eax, %eax
+  jz 9f
+  cmpl $0x31535a4b, KBUF         # "KZS1"
+  je 5f
+  cmpl $0x32535a4b, KBUF         # "KZS2"
+  jne 9f
+5:
+  movl $KTMPINV, %edi
+  movl $0xffffffff, %eax
+  movl $64, %ecx
+  rep stosl
+  xorl %esi, %esi
+1:
+  movzbl KBUF+4(%esi), %ebx       # ebx = game VK for physical key esi
+  testl %ebx, %ebx
+  jnz 3f
+  testl %esi, %esi                # no function: only a remappable key may have none
+  jz 2f
+  movl %esi, %eax
+  call KeyOk
+  testl %eax, %eax
+  jz 9f
+  jmp 2f
+3:
+  cmpb $0xff, KTMPINV(%ebx)
+  jne 9f                          # duplicate
+  movl %esi, %eax
+  movb %al, KTMPINV(%ebx)
+  cmpl %esi, %ebx
+  je 2f
+  call KeyOk
+  testl %eax, %eax
+  jz 9f
+  movl %ebx, %eax
+  call KeyOk
+  testl %eax, %eax
+  jz 9f
+2:
+  incl %esi
+  cmpl $256, %esi
+  jb 1b
+  movl $KBUF+4, %esi
+  movl $KMAP, %edi
+  movl $64, %ecx
+  rep movsl
+  call RebuildInv
+9:
+  popal
+  ret
+
+SaveKeys:
+  pushal
+  movl $0x32535a4b, KBUF         # "KZS2"
+  movl $KMAP, %esi
+  movl $KBUF+4, %edi
+  movl $64, %ecx
+  rep movsl
+  pushl $260
+  pushl $KBUF
+  pushl $KNAME
+  CALLABS 0x50aef0
+  addl $12, %esp
+  popal
+  ret
+
+# in: eax = action row, edx = physical key (remappable).  The key now produces the action's key; the key that produced it before has no function any more.
+# The function the new key had: another action's -> unbound (nothing produces its key any more); a hotkey that is not a row of the page (M, [ ...) moves to the
+# action's old key.
+Bind:
+  pushal
+  movzbl ACTVK(%eax), %ecx        # ecx = the game's key for the action
+  movzbl KINV(%ecx), %esi         # esi = physical key producing it now (0 = none)
+  movzbl KMAP(%edx), %ebx         # ebx = game key the new physical key produces now (0 = none)
+  cmpl %edx, %esi
+  je 9f
+  testl %esi, %esi
+  jz 1f
+  movb $0, KMAP(%esi)
+1:
+  movb %cl, KMAP(%edx)
+  testl %ebx, %ebx
+  jz 3f
+  cmpl %ecx, %ebx
+  je 3f
+  testl %esi, %esi
+  jz 3f
+  movl %ebx, %eax
+  call IsAct
+  testl %eax, %eax
+  jnz 3f
+  movb %bl, KMAP(%esi)
+3:
+  call RebuildInv
+  call SaveKeys
+9:
+  popal
+  ret
+
+# in: eax = action row.  Nothing produces the action's key afterwards.
+UnBind:
+  pushal
+  movzbl ACTVK(%eax), %ecx
+  movzbl KINV(%ecx), %esi
+  testl %esi, %esi
+  jz 9f
+  movb $0, KMAP(%esi)
+  call RebuildInv
+  call SaveKeys
+9:
+  popal
+  ret
+
+# --- hook: 0x5c4e2c  lea ecx,[ebx-8] / cmp ecx,0x6f   (WM_KEYDOWN dispatch; ebx = VK, flags feed the following ja)
+# Translates ebx through kmap on the gameplay screens.  While a row of the keyboard page waits for a key the key is
+# swallowed instead (Esc cancels).
+KeyDown:
+  cmpb $0x0a, G_UISTATE
+  jne 0f
+  cmpl $2, KPAGE
+  jne 0f
+  addl $4, %esp                    # export page: no key-down reaches the game (Esc / F5 / F6 / F7 ...); the characters are handled by CharHook
+  JMPABS 0x5c591f
+0:
+  cmpl $0, KCAP
+  jl 2f
+  cmpb $0x0a, G_UISTATE
+  jne 1f
+  cmpl $1, KPAGE
+  je 5f
+1:
+  movl $-1, KCAP                  # stale capture (dialog was left): forget it
+2:
+  cmpl $256, %ebx
+  jae 4f
+  pushl %eax
+  movzbl G_UISTATE, %eax
+  cmpl $KSCR_N, %eax
+  jae 3f
+  cmpb $0, KSCREENS(%eax)
+  je 3f
+  movzbl KMAP(%ebx), %ebx
+3:
+  popl %eax
+4:
+  leal -8(%ebx), %ecx
+  cmpl $0x6f, %ecx
+  ret
+5:
+  cmpl $0x1b, %ebx
+  je 6f
+  cmpl $8, %ebx                   # Backspace: the action gets no key
+  jne 4f
+  movl KCAP, %eax
+  call UnBind
+  jmp 6f
+4:
+  movl %ebx, %edx
+  movl %ebx, %eax
+  call KeyOk
+  testl %eax, %eax
+  jz 7f                           # not a remappable key: ignore it, keep waiting
+  movl KCAP, %eax
+  call Bind
+6:
+  movl $-1, KCAP
+  movb $1, 0xf2a6ce               # redraw
+7:
+  addl $4, %esp                   # swallow: skip the rest of the key handler
+  JMPABS 0x5c591f
+
+# --- hook: 0x5c560f  mov al,[0xf2a6dd]  (start of the WM_CHAR handler; ebx = the character).  Most of the game's hotkeys (P pause, M, [ ], the digits and '-' that
+# open the control-panel tabs, Space = overlay ...) are characters, not key-downs: on the gameplay screens a letter / digit / '-' / space goes through the key
+# map (its VK -> the VK the game sees -> a character again; letters keep their case).  A key with no function, or one that has no character, drops the message.
+CharHook:
+  cmpb $0x0a, G_UISTATE
+  jne 0f
+  cmpl $2, KPAGE
+  jne 0f
+  call ExpChar
+  JMPABS 0x5c591f                  # page 2 takes every character
+0:
+  movzbl G_UISTATE, %eax
+  cmpl $KSCR_N, %eax
+  jae 9f
+  cmpb $0, KSCREENS(%eax)
+  je 9f
+  xorl %ecx, %ecx                  # ecx = 0x20 when the letter was lower case
+  movl %ebx, %edx
+  leal -0x61(%edx), %eax
+  cmpl $25, %eax
+  ja 1f
+  subl $0x20, %edx
+  movl $0x20, %ecx
+  jmp 3f
+1:
+  leal -0x41(%edx), %eax
+  cmpl $25, %eax
+  jbe 3f
+  leal -0x30(%edx), %eax
+  cmpl $9, %eax
+  jbe 3f
+  cmpl $0x2d, %edx
+  jne 2f
+  movl $0xbd, %edx
+  jmp 3f
+2:
+  cmpl $0x20, %edx
+  jne 9f
+3:
+  movzbl KMAP(%edx), %edx          # the VK the game sees (0 = none)
+  leal -0x41(%edx), %eax
+  cmpl $25, %eax
+  ja 4f
+  leal (%edx,%ecx), %ebx
+  jmp 8f
+4:
+  leal -0x30(%edx), %eax
+  cmpl $9, %eax
+  ja 5f
+  movl %edx, %ebx
+  jmp 8f
+5:
+  cmpl $0xbd, %edx
+  jne 6f
+  movl $0x2d, %ebx
+  jmp 8f
+6:
+  cmpl $0x20, %edx
+  jne 7f
+  movl %edx, %ebx
+  jmp 8f
+7:
+  JMPABS 0x5c591f                  # no character for it: drop the message
+8:
+  movl %ebx, 0x6c(%esp)            # the handler reads the character again from its frame at 0x5c56c3 (after the pause test): keep that copy in step
+9:
+  movb G_UISTATE, %al
+  JMPABS 0x5c5614
+
+# --- hooks: the 8 sites that poll R   call [GetAsyncKeyState]  (stdcall, VK on the stack)
+KeyPoll:
+  movl 4(%esp), %eax
+  cmpl $256, %eax
+  jae 1f
+  movzbl KINV(%eax), %eax
+  testl %eax, %eax
+  jnz 2f
+  ret $4                          # no key produces it: not pressed
+2:
+  movl %eax, 4(%esp)
+1:
+  jmp *IMP_GETASYNCKEYSTATE
+
+# --- Options menu item "Keyboard Controls": open the Display dialog on the keyboard page
+KeysOpen:
+  movl $1, KWANT
+  JMPABS 0x401db0
+
+# --- File menu item "Export City Image": only on the main city screens (the menu is shared with other screens: elsewhere it does nothing)
+ExpOpen:
+  call ZIsCity
+  testl %eax, %eax
+  jz 1f
+  movl $2, KWANT
+  JMPABS 0x401db0
+1:
+  ret
+
+# page 2 buttons.  Save: trim the name, arm the export (it runs on the next main-city draw, in ZoomDraw), close the dialog like Cancel does.
+ExpSave:
+  pushal
+  movl EXPLEN, %ecx
+1:
+  testl %ecx, %ecx
+  jz 2f
+  movzbl EXPNAME-1(%ecx), %eax    # no trailing spaces / dots (Windows would drop them)
+  cmpl $0x20, %eax
+  je 3f
+  cmpl $0x2e, %eax
+  jne 2f
+3:
+  decl %ecx
+  jmp 1b
+2:
+  testl %ecx, %ecx
+  jnz 4f
+  movl $0x79746943, EXPNAME        # "City"
+  movb $0, EXPNAME+4
+  movl $4, %ecx
+4:
+  movl %ecx, EXPLEN
+  movb $0, EXPNAME(%ecx)
+  movl $1, EXPPEND
+  CALLABS 0x401f70
+  popal
+  ret
+
+ExpCancel:
+  movl $0, EXPPEND
+  JMPABS 0x401f70
+
+# WM_CHAR on page 2 (ebx = the character): printable characters edit the name, Backspace deletes, Enter saves, Esc cancels.  Clobbers nothing.
+ExpChar:
+  pushal
+  cmpl $0x0d, %ebx
+  jne 1f
+  popal
+  jmp ExpSave
+1:
+  cmpl $0x1b, %ebx
+  jne 2f
+  popal
+  jmp ExpCancel
+2:
+  cmpl $8, %ebx
+  jne 3f
+  movl EXPLEN, %ecx
+  testl %ecx, %ecx
+  jz 9f
+  decl %ecx
+  movl %ecx, EXPLEN
+  movb $0, EXPNAME(%ecx)
+  jmp 8f
+3:
+  cmpl $0x20, %ebx
+  jb 9f
+  cmpl $0x7e, %ebx
+  ja 9f
+  xorl %ecx, %ecx
+4:
+  movzbl STR_EBAD(%ecx), %eax
+  testl %eax, %eax
+  jz 5f
+  cmpl %eax, %ebx
+  je 9f                           # not allowed in a file name
+  incl %ecx
+  jmp 4b
+5:
+  movl EXPLEN, %ecx
+  cmpl $40, %ecx
+  jae 9f
+  movb %bl, EXPNAME(%ecx)
+  movb $0, EXPNAME+1(%ecx)
+  incl %ecx
+  movl %ecx, EXPLEN
+8:
+  movb $1, 0xf2a6ce
+9:
+  popal
+  ret
+
+# --- hook: 0x401db0  mov eax,[0x781894]   (opens screen 0x0a; every way in comes through here)
+OpenHook:
+  movl KWANT, %eax
+  movl %eax, KPAGE
+  movl $0, KWANT
+  movl $-1, KCAP
+  call SetPage
+  movl 0x781894, %eax
+  JMPABS 0x401db5
+
+SetPage:
+  pushl %esi
+  pushl %edi
+  pushl %ecx
+  movl $DWIDGETS, %esi
+  cmpl $0, KPAGE
+  je 1f
+  movl $KWIDGETS, %esi
+  cmpl $2, KPAGE
+  jne 1f
+  movl $EWIDGETS, %esi
+1:
+  movl $WIDGETS, %edi
+  movl $NBTN*7, %ecx              # 28 bytes per record
+  rep movsl
+  popl %ecx
+  popl %edi
+  popl %esi
+  ret
+
+# sets DRAW_ROWS / DRAW_N / DRAW_FH / DRAW_TITLE for the page being drawn (keyboard labels are rebuilt here)
+PickPage:
+  cmpl $2, KPAGE
+  je .Lpage2
+  cmpl $0, KPAGE
+  jne 1f
+  movl $DLGROWS, DRAW_ROWS
+  movl $NDLG, DRAW_N
+  movl $FH, DRAW_FH
+  movl $FW, DRAW_FW
+  movl $0x60, DRAW_FX
+  movl $0, DRAW_TITLE
+  movl $0, DRAW_TDX
+  movl $0, DRAW_TDY
+  ret
+1:
+  call BuildKeyLabels
+  movl $KROWS, DRAW_ROWS
+  movl $NKBTN, DRAW_N
+  movl $KFH, DRAW_FH
+  movl $KFW, DRAW_FW
+  movl $KFX, DRAW_FX
+  movl $100+KTITLE, DRAW_TITLE
+  movl $-18, DRAW_TDX
+  movl $8, DRAW_TDY
+  ret
+.Lpage2:
+  call BuildExpStrings
+  movl $EROWS, DRAW_ROWS
+  movl $3, DRAW_N
+  movl $EFH, DRAW_FH
+  movl $EFW, DRAW_FW
+  movl $EFX, DRAW_FX
+  movl $100+ETITLE, DRAW_TITLE
+  movl $0, DRAW_TDX
+  movl $0, DRAW_TDY
+  ret
+
+# page 2 strings: the typed name with a cursor, and the hint line "Saved to your Desktop as <name>.png"
+BuildExpStrings:
+  pushal
+  movl $EXPDISP, %esi
+  movl $EXPNAME, %edx
+  call AppendStr
+  movb $0x5f, (%esi)
+  movb $0, 1(%esi)
+  movl $EXPHINT, %esi
+  movl $STR_EHINT, %edx
+  call AppendStr
+  movl $EXPNAME, %edx
+  call AppendStr
+  movl $STR_EPNG, %edx
+  call AppendStr
+  movb $0, (%esi)
+  popal
+  ret
+
+# in: eax = VK.  out: edx = its name.
+KeyName:
+  testl %eax, %eax
+  jnz 4f
+  movl $STR_NONE, %edx
+  ret
+4:
+  cmpl $0x20, %eax
+  jne 5f
+  movl $STR_SPACE, %edx
+  ret
+5:
+  cmpl $0xbd, %eax
+  jne 6f
+  movl $STR_MINUS, %edx
+  ret
+6:
+  cmpl $0x30, %eax
+  jb 1f
+  cmpl $0x39, %eax
+  jbe 2f
+  cmpl $0x41, %eax
+  jb 3f
+  cmpl $0x5a, %eax
+  jbe 2f
+  jmp 3f
+2:
+  movb %al, KCH
+  movb $0, KCH+1
+  movl $KCH, %edx
+  ret
+1:
+  cmpl $0x21, %eax
+  jb 3f
+  cmpl $0x2e, %eax
+  ja 3f
+  movl KNAMES-0x84(,%eax,4), %edx
+  ret
+3:
+  movl $STR_QM, %edx
+  ret
+
+# "<action> - <key>" for every row of the keyboard page
+BuildKeyLabels:
+  pushal
+  xorl %ebx, %ebx
+1:
+  imull $KLBLSZ, %ebx, %esi
+  addl $KLBL, %esi
+  cmpl %ebx, KCAP
+  jne 2f
+  movl $STR_PRESS, %edx
+  jmp 3f
+2:
+  testl %ebx, %ebx                 # row 0 = "Map scrolling": the mode, not a key
+  jnz 4f
+  movl $STR_ARROWS, %edx
+  cmpb $0x26, KMAP+0x57            # W sends Up: WASD
+  jne 3f
+  movl $STR_WASD, %edx
+  jmp 3f
+4:
+  movzbl ACTVK(%ebx), %eax
+  movzbl KINV(%eax), %eax
+  call KeyName
+3:
+  call AppendStr
+  movb $0, (%esi)
+  incl %ebx
+  cmpl $NACT, %ebx
+  jb 1b
+  popal
+  ret
+
+# keyboard-page button handlers.  [0xf135f8] = button param
+KeyRowClick:
+  movl 0xf135f8, %eax
+  subl $10, %eax
+  movl %eax, KCAP
+  movb $1, 0xf2a6ce
+  ret
+
+# row 0 button: toggles WASD <-> arrow keys (W/S/A/D and Up/Down/Left/Right swap their game keys, or each is itself again)
+ScrollToggle:
+  pushal
+  xorl %eax, %eax
+  cmpb $0x26, KMAP+0x57
+  sete %al
+  xorl $1, %eax                    # 1 = switch to WASD
+  xorl %esi, %esi
+1:
+  movzbl SCRL(%esi), %ebx          # letter
+  movzbl SCRA(%esi), %ecx          # arrow
+  testl %eax, %eax
+  jz 2f
+  movb %cl, KMAP(%ebx)
+  movb %bl, KMAP(%ecx)
+  jmp 3f
+2:
+  movb %bl, KMAP(%ebx)
+  movb %cl, KMAP(%ecx)
+3:
+  incl %esi
+  cmpl $4, %esi
+  jb 1b
+  call RebuildInv
+  call SaveKeys
+  movl $-1, KCAP
+  movb $1, 0xf2a6ce
+  popal
+  ret
+
+KeyReset:
+  call ResetKeys
+  call SaveKeys
+  movl $-1, KCAP
+  movb $1, 0xf2a6ce
+  ret
+
+KeysClose:
+  movl $-1, KCAP
+  JMPABS 0x401f70                 # the Display dialog's own Cancel
+
+# --- hook: 0x512870  width of the widest string of a text group (the pull-down menu box is that wide).  The Options group
+# gets our extra item measured in too (same font as 0x512880; the stored width is in 16 px blocks).
+GroupWidth:
+  movl 4(%esp), %eax
+  movl 0xf9d950(,%eax,4), %eax
+  movl $STR_KMENU, %edx
+  cmpl $2, 4(%esp)
+  je 7f
+  movl $STR_EXPMENU, %edx
+  cmpl $1, 4(%esp)
+  jne 9f
+7:
+  pushl %eax
+  pushl %edx
+  movl 0x12bc820, %eax
+  cmpl $1, %eax
+  movl 0x12afbec, %eax
+  jl 1f
+  addl $8, %eax
+1:
+  popl %edx
+  pushl 4(%eax)
+  pushl %edx
+  CALLABS 0x507da0
+  addl $8, %esp
+  movl %eax, %ecx
+  shrl $4, %ecx                   # the table holds 16 px blocks: (px >> 4) + 2, as 0x5127c0 stores it
+  addl $2, %ecx
+  popl %eax
+  cmpl %ecx, %eax
+  jae 9f
+  movl %ecx, %eax
+9:
+  ret
+
+# ================================================================ world-map fit
+# Coordinates of cities (200 x 0x48 at 0x8febe8: x=+4 y=+6) and route points (232 x 0x144 at 0x9034f8:
+# ptr=+4 count=+0x134, 6-byte points x,y,?) are scaled around every map draw / hit-test (wrappers below) and
+# put back afterwards.  The map image is a pre-composited (vw+1) x vh picture (see mapfit.py).
+
+# out: CF=0 active (FP filled), CF=1 inactive.  Active = fit-table slot > 0 (R in mode 3, 14 = 800x600, 15 = 640x480; same
+# mapping as cur_key() in mapcomp.c) and the loaded map image has exactly the composite size for that slot.
+FitParams:
+  movl G_MODE, %eax
+  cmpl $1, %eax
+  jne 5f
+  movl $15, %eax
+  jmp 3f
+5:
+  cmpl $2, %eax
+  jne 6f
+  movl $14, %eax
+  jmp 3f
+6:
+  cmpl $3, %eax
+  jne 9f
+  movl CUR_R, %eax
+  testl %eax, %eax
+  jz 9f
+3:
+  movl G_MAPIDX, %edx             # table row group ("kind"): Poseidon01..04 (idx 11..14) -> 1..4, everything else 0
+  subl $10, %edx
+  cmpl $4, %edx
+  jbe 1f
+  xorl %edx, %edx
+1:
+  shll $4, %edx
+  addl %edx, %eax                 # kind * 16 + R
+  imull $20, %eax, %eax
+  movl FITTAB+12(%eax), %edx
+  cmpl G_MAPW, %edx
+  jne 9f
+  movl FITTAB+16(%eax), %edx
+  cmpl G_MAPH, %edx
+  jne 9f
+  movl FITTAB(%eax), %edx
+  movl %edx, FP
+  movl FITTAB+4(%eax), %edx
+  movl %edx, FP+4
+  movl FITTAB+8(%eax), %edx
+  movl %edx, FP+8
+  xorl %edx, %edx
+  cmpl $12, G_MAPIDX
+  jne 2f
+  movl $0x3f, %edx
+2:
+  movl %edx, FP+12
+  clc
+  ret
+9:
+  stc
+  ret
+
+# eax = x (signed) -> eax = OX + ((x+off)*S >> 16) - off      (clobbers eax only)
+ScaleX:
+  addl FP+12, %eax
+  imull FP, %eax
+  sarl $16, %eax
+  addl FP+4, %eax
+  subl FP+12, %eax
+  ret
+# eax = y -> OY + (y*S >> 16)
+ScaleY:
+  imull FP, %eax
+  sarl $16, %eax
+  addl FP+8, %eax
+  ret
+
+# esi -> current x,y shorts; edi -> saved originals.  Puts the original back unless the callee changed it.
+RestorePt:
+  movswl (%edi), %eax
+  call ScaleX
+  cmpw %ax, (%esi)
+  jne 1f
+  movw (%edi), %ax
+  movw %ax, (%esi)
+1:
+  movswl 2(%edi), %eax
+  call ScaleY
+  cmpw %ax, 2(%esi)
+  jne 2f
+  movw 2(%edi), %ax
+  movw %ax, 2(%esi)
+2:
+  ret
+
+# Called by the wrappers with pushal/popal around it.
+ScaleAll:
+  movl $0, SCALED
+  call FitParams
+  jc 90f
+  xorl %ebx, %ebx                 # total route points
+  movl $0x9034f8, %esi
+  movl $232, %ecx
+1:
+  cmpl $0, 4(%esi)
+  je 2f
+  movl 0x134(%esi), %eax
+  testl %eax, %eax
+  jle 2f
+  addl %eax, %ebx
+2:
+  addl $0x144, %esi
+  decl %ecx
+  jnz 1b
+  cmpl $CAP, %ebx
+  ja 90f                          # too many points for the shadow buffer: leave the map unscaled
+  movl $1, SCALED
+  movl $0x8febec, %esi
+  movl $CITYSH, %edi
+  movl $200, %ecx
+3:
+  movswl (%esi), %eax
+  movw %ax, (%edi)
+  call ScaleX
+  movw %ax, (%esi)
+  movswl 2(%esi), %eax
+  movw %ax, 2(%edi)
+  call ScaleY
+  movw %ax, 2(%esi)
+  addl $0x48, %esi
+  addl $4, %edi
+  decl %ecx
+  jnz 3b
+  movl $0x9034f8, %esi
+  movl $PATHHDR, %ebp
+  movl $PSHADOW, %edi
+  movl $232, %ecx
+4:
+  movl 4(%esi), %eax
+  movl 0x134(%esi), %edx
+  testl %eax, %eax
+  jz 5f
+  testl %edx, %edx
+  jle 5f
+  movl %eax, (%ebp)
+  movl %edx, 4(%ebp)
+  movl %edi, 8(%ebp)
+  pushl %ecx
+  movl %eax, %ebx
+  movl %edx, %ecx
+6:
+  movswl (%ebx), %eax
+  movw %ax, (%edi)
+  call ScaleX
+  movw %ax, (%ebx)
+  movswl 2(%ebx), %eax
+  movw %ax, 2(%edi)
+  call ScaleY
+  movw %ax, 2(%ebx)
+  addl $6, %ebx
+  addl $4, %edi
+  decl %ecx
+  jnz 6b
+  popl %ecx
+  jmp 7f
+5:
+  movl $0, (%ebp)
+7:
+  addl $0x144, %esi
+  addl $12, %ebp
+  decl %ecx
+  jnz 4b
+90:
+  ret
+
+RestoreAll:
+  cmpl $0, SCALED
+  je 90f
+  movl $0, SCALED
+  movl $0x8febec, %esi
+  movl $CITYSH, %edi
+  movl $200, %ecx
+1:
+  call RestorePt
+  addl $0x48, %esi
+  addl $4, %edi
+  decl %ecx
+  jnz 1b
+  movl $0x9034f8, %ebx            # path object
+  movl $PATHHDR, %ebp
+  movl $232, %ecx
+2:
+  movl (%ebp), %eax
+  testl %eax, %eax
+  jz 5f
+  cmpl %eax, 4(%ebx)              # arrays rebuilt by the callee: leave them alone
+  jne 5f
+  movl 4(%ebp), %edx
+  cmpl %edx, 0x134(%ebx)
+  jne 5f
+  movl 8(%ebp), %edi
+  movl %eax, %esi
+  pushl %ecx
+  movl %edx, %ecx
+3:
+  call RestorePt
+  addl $6, %esi
+  addl $4, %edi
+  decl %ecx
+  jnz 3b
+  popl %ecx
+5:
+  addl $0x144, %ebx
+  addl $12, %ebp
+  decl %ecx
+  jnz 2b
+90:
+  ret
+
+# Shared return path of the wrappers: back from the wrapped function, restore the data, return to the caller.
+Epi:
+  pushl $0
+  pushl %eax
+  pushl %edx
+  movl RSDEPTH, %edx
+  decl %edx
+  movl %edx, RSDEPTH
+  movl RSTACK(,%edx,4), %eax
+  movl %eax, 8(%esp)
+  testl %edx, %edx
+  jnz 1f
+  pushal
+  call RestoreAll
+  popal
+1:
+  popl %edx
+  popl %eax
+  ret
+
+# Entry wrapper: swaps the return address for Epi (real one parked in RSTACK), scales when outermost,
+# re-executes the displaced entry instructions and continues in the original function.
+.macro WRAP name, tail
+\name:
+  pushl %eax
+  movl RSDEPTH, %eax
+  pushl %edx
+  movl 8(%esp), %edx
+  movl %edx, RSTACK(,%eax,4)
+  movl $EPI, 8(%esp)
+  popl %edx
+  incl %eax
+  movl %eax, RSDEPTH
+  decl %eax
+  jnz 1f
+  pushal
+  call ScaleAll
+  popal
+1:
+  popl %eax
+  \tail
+.endm
+WRAP WrapDraw,  ".byte 0x83,0xec,0x54 ; CALLABS 0x509a00 ; JMPABS 0x599da8"
+WRAP WrapClick, ".byte 0x83,0xec,0x2c,0x53,0x55 ; JMPABS 0x5c1d95"
+WRAP WrapHit1,  ".byte 0x83,0xec,0x10,0xa1,0x38,0xa7,0xf2,0x00 ; JMPABS 0x407368"
+WRAP WrapHit2,  ".byte 0xa0,0x08,0xa7,0xf2,0x00 ; JMPABS 0x407145"
+WRAP WrapHit3,  ".byte 0xa0,0x08,0xa7,0xf2,0x00 ; JMPABS 0x406ca5"
+WRAP WrapHit4,  ".byte 0xa0,0x08,0xa7,0xf2,0x00 ; JMPABS 0x421af5"
+WRAP WrapHit5,  ".byte 0x0f,0xbe,0x05,0xb0,0xa7,0xf2,0x00 ; JMPABS 0x421c77"
+# _write(): never let a file be written while city/route data is scaled (save games must see the real values)
+WrapWrite:
+  cmpl $0, SCALED
+  je 1f
+  pushal
+  call RestoreAll
+  popal
+1:
+  .byte 0x55,0x8b,0xec,0x81,0xec,0x14,0x04,0x00,0x00
+  JMPABS 0x5cfdec
+
+# The world-map group is only reloaded when its cached name differs (0x5ac570 strcmp).  After a mode / resolution
+# change the old image (other size) would stay, so forget the names of the map groups: 68 slots of 0xcc44 bytes, name at +0x1008.
+# clobbers eax ecx edx
+InvalMap:
+  movl $0x12aebe8+0x1008, %edx
+  movl $68, %ecx
+1:
+  movl (%edx), %eax
+  orl $0x20202020, %eax
+  cmpl $0x7375657a, %eax          # "zeus"
+  jne 2f
+  movl 4(%edx), %eax
+  orl $0x20202020, %eax
+  cmpl $0x70616d7f, %eax          # "_map"
+  je 3f
+  jmp 4f
+2:
+  cmpl $0x65736f70, %eax          # "pose"
+  jne 4f
+  movl 4(%edx), %eax
+  orl $0x20202020, %eax
+  cmpl $0x6e6f6469, %eax          # "idon"
+  jne 4f
+  movl 8(%edx), %eax
+  orl $0x20202020, %eax
+  cmpl $0x70616d7f, %eax          # "_map"
+  jne 4f
+3:
+  movb $0, (%edx)
+4:
+  addl $0xcc44, %edx
+  decl %ecx
+  jnz 1b
+  ret
+
+WRAP WrapHit6,  ".byte 0xa1,0x88,0x2f,0xda,0x00 ; JMPABS 0x408a65"
+
+
+# --- hook: 0x5acd06  call 0x504de0   (the world-map JPG load; cdecl: path, &pixels, &w, &h)
+# cm_load returns w*h*2 when it produced the map from the land PNG, 0 = not a map / no PNG -> original loader
+MapLoad:
+  pushl 16(%esp)
+  pushl 16(%esp)
+  pushl 16(%esp)
+  pushl 16(%esp)
+  CALLABS C_LOAD
+  addl $16, %esp
+  testl %eax, %eax
+  jz 1f
+  ret
+1:
+  JMPABS 0x504de0
+
+# --- hook: 0x5acf50  draw_image(id, x, y)  (6-byte prologue `sub esp,0x114` replaced).  The Zeus / Poseidon logo sprites (PoseidonImps.sg3, image ids
+# 0xd614f..0xd6158: Poseidon 3 frames, Zeus 4, blue Poseidon 3; the game's record numbering is one below the pack index) are drawn relative to the centred
+# 800x600 picture, (x, y) = ((W-800)/2 + k, (H-600)/2 + k'): draw them relative to the screen's top-left corner instead.  Except on the game-choice screen
+# (Poseidon_FE_MainMenu: two logos above the Play buttons, which are placed relative to the same picture): that one keeps the game's own positions.
+# [esp+4] = id, [esp+8] = x, [esp+12] = y.
+LogoHook:
+  movl 4(%esp), %eax
+  subl $0xd614f, %eax
+  cmpl $10, %eax
+  jae 1f
+  cmpl $0x63bc78, 0xf0e620        # the cached background's path literal "data\Poseidon_FE_MainMenu.jpg"
+  je 1f
+  movl 0xf2a6b4, %eax
+  subl $800, %eax
+  cltd
+  subl %edx, %eax
+  sarl $1, %eax                   # the game's own (W-800)/2
+  subl %eax, 8(%esp)
+  movl 0xf2a6b0, %eax
+  subl $600, %eax
+  cltd
+  subl %edx, %eax
+  sarl $1, %eax
+  subl %eax, 12(%esp)
+1:
+  subl $0x114, %esp               # the displaced instruction
+  JMPABS 0x5acf56
+
+# --- hook: 0x505127  mov ecx,[0xf2ab24]   inside the image loader 0x504fa0, right after the stock JPG was decoded
+# (ebp = BGR24 buffer, esi = w, ebx = h; [esp+0x10] = copy of ebp that the loader frees at its end; [esp+0xa4] = path).
+# Launch video (shown right after "cmp [0xf2a7e4], 0xe9" in the game's intro code, which plays the _hiq video when the flags say >=): when
+# cm_intro finds Binks\Zeus_Intro_HD.bik, play it through the game's own video function 0x417b00 (ecx = the player object, 3 stack args,
+# callee pops them) at the window's origin (0, 0) and skip the stock call; otherwise the 6 bytes replaced here run unchanged (the flags are
+# rebuilt first because the hook clobbers them).  BlitHook then scales it.
+IntroHook:
+  cmpl $0xe9, 0xf2a7e4
+  jl 9f
+  pushl %ecx
+  CALLABS C_INTRO
+  popl %ecx
+  testl %eax, %eax
+  jz 9f
+  pushl $0                        # y
+  pushl $0                        # x
+  pushl $INTRO_PATH
+  CALLABS 0x417b00
+  JMPABS 0x5c3bb0
+9:
+  cmpl $0xe9, 0xf2a7e4
+  movl 0xf2a6b0, %edx
+  JMPABS 0x5c3b6c
+
+# Replaces `call [BinkCopyToBuffer]` (0x417ad6) in the per-frame video draw: BinkCopyToBuffer(bink, dest, pitch, height, x, y, flags), stdcall.
+# A video no wider than the stock 640 goes straight to the original; a bigger one is decoded and scaled by cm_vblit(bink, dest, pitch, bpp, flags)
+# (bpp = ebp in the game's draw function), and nothing is copied 1:1 (that would write outside the surface).
+BlitHook:
+  movl 4(%esp), %eax
+  cmpl $640, (%eax)
+  jbe 1f
+  pushl 28(%esp)                  # flags
+  pushl %ebp                      # bytes per pixel
+  pushl 20(%esp)                  # pitch
+  pushl 20(%esp)                  # dest
+  pushl 20(%esp)                  # bink
+  CALLABS C_VBLIT
+  addl $20, %esp
+  ret $28
+1:
+  jmpl *0x5d8238
+
+# cm_image returns a screen-sized (cover-scaled) buffer from Data\Images\<name>.png, or 0 = keep the JPG.
+ImgHook:
+  pushl 0xf2a6b0                  # H, W = the screen (every mode): a W x H image is what ImgPin pins to (0,0)
+  pushl 0xf2a6b4
+  pushl 0xac(%esp)                # path
+  CALLABS C_IMAGE
+  addl $12, %esp
+  testl %eax, %eax
+  jz 1f
+  pushl %eax
+  pushl %ebp
+  CALLABS 0x5cc872                # game free: the JPG's buffer
+  addl $4, %esp
+  popl %ebp
+  movl %ebp, 0x10(%esp)
+  movl 0xf2a6b4, %esi
+  movl 0xf2a6b0, %ebx
+1:
+  movl 0xf2ab24, %ecx
+  JMPABS 0x50512d
+
+# --- hook: 0x5051f8..0x505227  the loader's pin code (was: in mode 3 only, an image of the entry's W x H gets x = 0 / y = 0 instead of the
+# caller's centre offsets; the cached-image path jumps here too, so it holds on every frame).  Now in every mode, against the screen size.
+# esi, ebx = image w, h; [esp+0xa8] = x, [esp+0xac] = y of the call; out: ebp = y.
+ImgPin:
+  cmpl 0xf2a6b4, %esi
+  jne 1f
+  movl $0, 0xa8(%esp)
+1:
+  cmpl 0xf2a6b0, %ebx
+  jne 2f
+  xorl %ebp, %ebp
+  jmp 3f
+2:
+  movl 0xac(%esp), %ebp
+3:
+  JMPABS 0x505228
+
+# ======================================================================== city zoom
+# The game draws the city through a "view" of cols x rows cells (setter 0x449e50).  Zoom gives it a bigger or smaller view (the setter call of the
+# city view, 0x51cc44, is hooked), has it draw that into a private canvas (hook on the call of the city draw 0x44a830 in 0x51cab0) and scales the canvas
+# into the real back buffer.  The mouse is mapped into the canvas' coordinates where the game polls it (0x50b5de), so picking, the build cursor and
+# drag selection need no change.  The wheel zooms (hook 0x5c593f) when the mouse is over the map.
+
+# out: eax = 1 on the main city screens (the ones that draw the city map by themselves).  Only eax changes.
+ZIsCity:
+  movzbl G_UISTATE, %eax
+  cmpl $1, %eax
+  je 1f
+  cmpl $0x20, %eax
+  je 1f
+  cmpl $0x48, %eax
+  je 1f
+  xorl %eax, %eax
+  ret
+1:
+  movl $1, %eax
+  ret
+
+# out: eax = the magnification (percent) the game's view should have right now.  Only eax changes.
+ZEff:
+  call ZIsCity
+  testl %eax, %eax
+  movl $100, %eax
+  jz 1f
+  movl ZOOMP, %eax
+1:
+  ret
+
+# in: eax = percent.  Sets ZAPPLIED, ZK, ZOC, ZOR (the view to give the game) from the real view in ZARGS.
+ZCalc:
+  pushl %ecx
+  pushl %edx
+  movl %eax, ZAPPLIED
+  pushl $ZOR
+  pushl $ZOC
+  pushl ZARGS+20
+  pushl ZARGS+16
+  pushl %eax
+  CALLABS C_ZDIMS
+  addl $20, %esp
+  movl %eax, ZK
+  popl %edx
+  popl %ecx
+  ret
+
+# calls the game's view setter with the real args but the view ZOC x ZOR
+ZSetView:
+  pushl ZARGS+28
+  pushl ZARGS+24
+  pushl ZOR
+  pushl ZOC
+  pushl ZARGS+12
+  pushl ZARGS+8
+  pushl ZARGS+4
+  pushl ZARGS+0
+  CALLABS 0x449e50
+  addl $32, %esp
+  ret
+
+# in: eax = percent.  Applies it: new view, then the game's own scroll clamp, and a redraw request.
+ZApply:
+  cmpl $0, ZVALID
+  je 9f
+  pushal
+  call ZCalc
+  call ZSetView
+  CALLABS 0x51cd60
+  movb $1, 0xf2a6ce
+  popal
+9:
+  ret
+
+# in: eax = percent.  The view counts for it, nothing else (no clamp: used when a screen change makes the view real / zoomed again)
+ZViewOnly:
+  cmpl $0, ZVALID
+  je 9f
+  pushal
+  call ZCalc
+  call ZSetView
+  popal
+9:
+  ret
+
+# out: eax = 1 on the dialog screens that draw the city map behind them (3, 5, 7, 9, 0x11).  Only eax changes.
+ZIsDlg:
+  movzbl G_UISTATE, %eax
+  cmpl $3, %eax
+  je 1f
+  cmpl $5, %eax
+  je 1f
+  cmpl $7, %eax
+  je 1f
+  cmpl $9, %eax
+  je 1f
+  cmpl $0x11, %eax
+  je 1f
+  xorl %eax, %eax
+  ret
+1:
+  movl $1, %eax
+  ret
+
+# makes the game's view match the magnification wanted for the current screen: persistent (and the camera clamped) on the main city screens,
+# real counts (no clamp, the camera stays where it is) everywhere else - dialogs lay themselves out from the view's rectangle
+ZoomSync:
+  pushl %eax
+  call ZEff
+  cmpl ZAPPLIED, %eax
+  je 1f
+  pushl %eax
+  call ZIsCity
+  testl %eax, %eax
+  popl %eax
+  jz 2f
+  call ZApply
+  jmp 1f
+2:
+  call ZViewOnly
+1:
+  popl %eax
+  ret
+
+# --- hook: 0x51cc44  call 0x449e50  (the city view setter, in 0x51cc00; the 8 args are on the stack)
+ZoomSetter:
+  pushal
+  leal 36(%esp), %esi
+  movl $ZARGS, %edi
+  movl $8, %ecx
+  rep movsl
+  movl $1, ZVALID
+  call ZEff
+  cmpl $100, %eax
+  jne 1f
+  movl %eax, ZAPPLIED
+  movl $0x10000, ZK
+  jmp 9f
+1:
+  call ZCalc
+  movl ZOC, %eax
+  movl %eax, 52(%esp)               # p5 = cols
+  movl ZOR, %eax
+  movl %eax, 56(%esp)               # p6 = rows
+9:
+  popal
+  JMPABS 0x449e50
+
+# The export: the game's draw runs tile by tile inside cm_export with the REAL view (zoom is switched off for the duration and put back), overlay / hover / ghost
+# state zeroed by the C code.  Result -> the game's notification line (like the zoom notice).
+ZExport:
+  pushal
+  movl $0, EXPPEND
+  movl ZAPPLIED, %eax
+  movl %eax, ZEXOLD
+  cmpl $100, %eax
+  je 1f
+  movl $100, %eax
+  call ZViewOnly
+1:
+  movl 0xda2f88, %eax              # the world rectangle the player can scroll over (the camera clamp 0x51cd60: camera col >= [fa05b4], camera row >= [fa05ac],
+  movzbl 0x8f9823, %edx            # col + view cols <= [fa05b0], row + view rows <= [fa05a8] - (per-view byte at 0x8f9820..23) - 4):
+  testl %eax, %eax                 # X from 60 * min col, Y from 15 * min row + 15, width 60 * (max col - min col) - 2, height 15 * (bottom - min row - 1)
+  jnz 3f
+  movzbl 0x8f9820, %edx
+  jmp 6f
+3:
+  cmpl $2, %eax
+  jne 4f
+  movzbl 0x8f9821, %edx
+  jmp 6f
+4:
+  cmpl $4, %eax
+  jne 6f
+  movzbl 0x8f9822, %edx
+6:
+  movl 0xfa05a8, %ecx
+  subl %edx, %ecx
+  subl $4, %ecx                    # ecx = bottom row limit
+  movl 0xfa05b4, %eax
+  imull $60, %eax, %eax
+  addl 0x7d3b94, %eax
+  movl %eax, EXPARGS               # X0
+  movl 0xfa05b0, %eax
+  subl 0xfa05b4, %eax
+  imull $60, %eax, %eax
+  subl $2, %eax
+  movl %eax, EXPARGS+8             # W
+  movl 0xfa05ac, %eax
+  imull $15, %eax, %edx
+  addl $15, %edx
+  movl %edx, EXPARGS+4             # Y0
+  subl 0xfa05ac, %ecx
+  decl %ecx
+  imull $15, %ecx, %ecx
+  movl %ecx, EXPARGS+12            # H
+  movl 0x7d3bbc, %eax
+  movl %eax, EXPARGS+16
+  movl 0x7d3bb8, %eax
+  movl %eax, EXPARGS+20
+  movl 0xda2f80, %eax
+  movl %eax, EXPARGS+24
+  pushl $EXPPATH
+  pushl $EXPARGS
+  pushl $EXPNAME
+  CALLABS C_EXPORT
+  addl $12, %esp
+  movl %eax, EXPRES
+  movl ZEXOLD, %eax
+  cmpl $100, %eax
+  je 2f
+  call ZViewOnly
+2:
+  movb $1, 0xf2a6ce
+  cmpl $0, EXPRES
+  jne 5f
+  movl $EXPPATH, %ecx              # the file name part of the path
+  movl %ecx, %esi
+3:
+  movzbl (%esi), %eax
+  testl %eax, %eax
+  jz 4f
+  incl %esi
+  cmpl $0x5c, %eax
+  je 6f
+  cmpl $0x2f, %eax
+  jne 3b
+6:
+  movl %esi, %ecx
+  jmp 3b
+4:
+  pushl %ecx
+  pushl $STR_EXPOK
+  jmp 7f
+5:
+  pushl EXPRES
+  pushl $STR_EXPERR
+7:
+  pushl $0x916af8
+  CALLABS 0x5cb68e                 # sprintf into the notification text buffer
+  addl $12, %esp
+  pushl $0
+  pushl $0
+  pushl $0x3e8
+  CALLABS 0x5231e0
+  addl $12, %esp
+  popal
+  ret
+
+# --- hook: 0x51cac4  call 0x44a830  (draw the city map; cdecl: 3 args, caller cleans up)
+# Zoomed: the game draws into the private canvas (buffer, pitch, width and height of the "screen" swapped for the duration), then the canvas is scaled
+# into the rectangle the real view covers.
+ZoomDraw:
+  call ZoomSync
+  cmpl $0, EXPPEND                 # "Export City Image" was confirmed: do it now, on the main city screen (anywhere else the request is dropped)
+  je 0f
+  call ZIsCity
+  testl %eax, %eax
+  jz 9f
+  call ZExport
+  jmp 0f
+9:
+  movl $0, EXPPEND
+0:
+  movl $0, ZTEMP
+  cmpl $100, ZAPPLIED
+  jne 1f
+  call ZIsDlg                       # a dialog over the city: the view is zoomed for this draw only, the dialog sees the real one
+  testl %eax, %eax
+  jz 2f
+  cmpl $100, ZOOMP
+  je 2f
+  cmpl $0, ZVALID
+  je 2f
+  movl ZOOMP, %eax
+  call ZViewOnly
+  movl $1, ZTEMP
+  jmp 1f
+2:
+  JMPABS 0x44a830
+1:
+  pushal
+  movl 0x7d3b90, %eax               # canvas = the view's clip rectangle: right edge x bottom edge (the setter's results)
+  addl $2, %eax
+  andl $-2, %eax
+  movl %eax, ZVW
+  movl 0x7d3b88, %ecx
+  movl %ecx, ZVH
+  leal 2(%ecx), %edx
+  imull %edx, %eax
+  addl %eax, %eax
+  pushl %eax
+  CALLABS C_ZBUF
+  addl $4, %esp
+  testl %eax, %eax
+  jnz 2f
+  movl $100, ZOOMP                  # no canvas: stop zooming (ZoomSync restores the real view, then the plain path runs)
+  popal
+  jmp ZoomDraw
+2:
+  movl %eax, ZBUF
+  movl 0xf9c100, %eax
+  movl %eax, ZSAVE
+  movl 0xf2a698, %eax
+  movl %eax, ZSAVE+4
+  movl 0xf2a6a0, %eax
+  movl %eax, ZSAVE+8
+  movl 0xf2a69c, %eax
+  movl %eax, ZSAVE+12
+  movl 0xf2a6b4, %eax
+  movl %eax, ZSAVE+16
+  movl 0xf2a6b0, %eax
+  movl %eax, ZSAVE+20
+  movl ZBUF, %eax
+  movl %eax, 0xf9c100
+  movl ZVW, %eax
+  movl %eax, 0xf2a6a0
+  movl %eax, 0xf2a6b4
+  addl %eax, %eax
+  movl %eax, 0xf2a698
+  movl ZVH, %eax
+  movl %eax, 0xf2a69c
+  movl %eax, 0xf2a6b0
+  pushl 44(%esp)                    # p3, p2, p1 (each push moves esp: the same offset three times)
+  pushl 44(%esp)
+  pushl 44(%esp)
+  CALLABS 0x44a830
+  addl $12, %esp
+  cmpl $0, ZTEMP
+  jne 5f
+  CALLABS 0x4542b0                  # the build-cost text goes into the canvas too (its clip is the view's rectangle); ZoomCost skips the frame's own call
+5:
+  movl ZSAVE, %eax
+  movl %eax, 0xf9c100
+  movl ZSAVE+4, %eax
+  movl %eax, 0xf2a698
+  movl ZSAVE+8, %eax
+  movl %eax, 0xf2a6a0
+  movl ZSAVE+12, %eax
+  movl %eax, 0xf2a69c
+  movl ZSAVE+16, %eax
+  movl %eax, 0xf2a6b4
+  movl ZSAVE+20, %eax
+  movl %eax, 0xf2a6b0
+  xorl %eax, %eax                   # the clip back to the whole real screen (what the game's own epilogue does)
+  movl %eax, 0xf139bc
+  movl %eax, 0xf139b4
+  movl 0xf2a6b4, %eax
+  movl %eax, 0xf139b8
+  movl 0xf2a6b0, %eax
+  movl %eax, 0xf139b0
+  movl 0xf9c0e4, %esi               # pixel layout of the back buffer: 2 = 565, 0 = 555 (anything else: no zoom)
+  cmpl $2, %esi
+  je 3f
+  testl %esi, %esi
+  jz 3f
+  movl $100, ZOOMP
+  jmp 9f
+3:
+  cmpl $2, %esi
+  sete %bl
+  movzbl %bl, %esi                  # f565
+  movl ZARGS+24, %eax               # the real view's rectangle: right edge x1 = (p7 + 2) * p5 - 2 + p3, bottom y1 = (p6 - 1) * (p8 / 2) + p4
+  addl $2, %eax
+  imull ZARGS+16, %eax
+  subl $2, %eax
+  addl ZARGS+8, %eax
+  movl %eax, %edi                   # x1
+  movl ZARGS+28, %eax
+  shrl $1, %eax
+  movl ZARGS+20, %ecx
+  decl %ecx
+  imull %ecx, %eax
+  addl ZARGS+12, %eax               # y1
+  pushl %esi                        # cm_zoom(src, sp, sw, sh, dst, dp, x1, y0, y1, k, f565)
+  pushl ZK
+  pushl %eax
+  pushl ZARGS+12
+  pushl %edi
+  pushl 0xf2a698
+  pushl 0xf9c100
+  pushl ZVH
+  pushl ZVW
+  movl ZVW, %eax
+  addl %eax, %eax
+  pushl %eax
+  pushl ZBUF
+  CALLABS C_ZOOM
+  addl $44, %esp
+9:
+  cmpl $0, ZTEMP
+  je 8f
+  movl $0, ZTEMP
+  movl $100, %eax
+  call ZViewOnly
+8:
+  popal
+  ret
+
+# --- hook: 0x5140c3  call 0x4542b0  (the build-cost text over the map, in the city frame).  Zoomed it was drawn inside the canvas by ZoomDraw.
+ZoomCost:
+  cmpl $100, ZAPPLIED
+  jne 1f
+  JMPABS 0x4542b0
+1:
+  ret
+
+# --- hook: 0x50b5de  mov [0xf2a738], edi / mov [0xf2a734], esi  (the game's mouse position, x / y; the flags of the `test al,2` before it are live: the right-button
+# state is set from them at 0x50b608, so every path restores them)
+# Zoomed and over the map: the position the game sees is the one in the canvas (k times the real one, from the view's top edge).
+ZoomMouse:
+  pushfl
+  movl %edi, ZRAWX
+  movl %esi, ZRAWY
+  movl %edi, 0xf2a738               # the raw position stays what the UI code (sidebar buttons, menus, dialogs) reads
+  movl %esi, 0xf2a734
+  movl %edi, ZVX                    # the three map-picking functions read these instead (patched operands, ZV_READS in build_exe.py)
+  movl %esi, ZVY
+  cmpl $100, ZAPPLIED
+  jne 1f
+  popfl
+  JMPABS 0x50b5ea
+1:
+  pushal
+  call ZEff
+  cmpl $100, %eax
+  je 8f
+  cmpl 0x10dff34, %edi              # the map is left of the sidebar
+  jae 7f
+  movl ZARGS+12, %eax               # and below the top bar
+  cmpl %eax, %esi
+  jl 7f
+  imull ZK, %edi
+  shrl $16, %edi
+  movl %edi, ZVX
+  subl %eax, %esi
+  imull ZK, %esi
+  shrl $16, %esi
+  addl %eax, %esi
+  movl %esi, ZVY
+  jmp 8f
+7:
+  movl $-1000, ZVX                  # zoomed out the canvas is wider than the screen: a mouse over the sidebar / top bar must NOT land inside it (it would pick a cell / show the build ghost)
+  movl $-1000, ZVY
+8:
+  popal
+  popfl
+  JMPABS 0x50b5ea
+
+# --- hook: 0x5c593f  mov al,[0xf2a6dd]  (WM_MOUSEWHEEL; ebx = wParam, the high word is the wheel delta; eax ecx edx are free)
+WheelHook:
+  movl %ebx, %edx
+  sarl $16, %edx
+  call WheelZoom
+  testl %eax, %eax
+  jz 1f
+  movl $0, 0x160ac90                # (the sidebar's wheel accumulator, zeroed as the stock handler does)
+  JMPABS 0x5c59b4                   # pop, return 0
+1:
+  movb G_UISTATE, %al
+  JMPABS 0x5c5944
+
+# in: edx = wheel delta.  out: eax = 1 when the wheel was used for zoom (the stock handler must not run).  Clobbers ecx edx.
+# Over the map of a city screen: 120 units = one level, at most one level per 80 ms (momentum flicks), the rest is dropped.
+WheelZoom:
+  pushl %edx
+  call ZIsCity
+  testl %eax, %eax
+  jz 8f
+  cmpl $0, ZVALID
+  je 8f
+  movl ZRAWX, %eax
+  cmpl 0x10dff34, %eax
+  jae 8f
+  movl ZRAWY, %eax
+  cmpl ZARGS+12, %eax
+  jl 8f
+  popl %eax
+  addl ZACC, %eax
+  cltd
+  movl $120, %ecx
+  idivl %ecx
+  movl %edx, ZACC
+  testl %eax, %eax
+  jz 7f
+  movl 0xf9c0f4, %ecx
+  movl %ecx, %edx
+  subl ZTICK, %ecx
+  cmpl $80, %ecx
+  jb 7f
+  movl %edx, ZTICK
+  sarl $31, %eax
+  orl $1, %eax                      # +1 (wheel up = zoom in) or -1
+  call ZStep
+7:
+  movl $1, %eax
+  ret
+8:
+  popl %edx
+  xorl %eax, %eax
+  ret
+
+# --- hook: 0x58f5a8  call 0x44a7c0  (pixel width of the view, to centre the "Game paused" banner): the real view's, not the zoomed one
+ZoomWidth:
+  cmpl $0, ZVALID
+  jne 1f
+  JMPABS 0x44a7c0
+1:
+  movl ZARGS+24, %eax
+  addl $2, %eax
+  imull ZARGS+16, %eax
+  ret
+
+# out: eax = x1, edx = y1 of the real view's rectangle (x1 = (p7 + 2) * p5 - 2 + p3, y1 = (p6 - 1) * (p8 / 2) + p4).  Clobbers ecx.
+ZRect:
+  movl ZARGS+24, %eax
+  addl $2, %eax
+  imull ZARGS+16, %eax
+  subl $2, %eax
+  addl ZARGS+8, %eax
+  movl ZARGS+28, %edx
+  shrl $1, %edx
+  movl ZARGS+20, %ecx
+  decl %ecx
+  imull %ecx, %edx
+  addl ZARGS+12, %edx
+  ret
+
+# The game's notification line (the one that says North / East ... after a rotate): custom text = sprintf into 0x916af8, then poster 0x5231e0(0x3e8, 0, 0)
+# (what the game's own debug notices do).  5 slots of 0x78 bytes at 0xfd3438: +0 id, +6 active, +0xc tick; the drawer (0x522ec0) expires one by
+# clearing +6 (and setting [0xf2a6cc]) - done here for the zoom notice we posted last time, so notices replace each other instead of stacking.
+ZNotify:
+  pushal
+  movl $-1, ZNCNT
+  movl ZNSLOT, %esi
+  testl %esi, %esi
+  js 3f
+  imull $0x78, %esi, %edi
+  cmpw $0x3e8, 0xfd3438(%edi)
+  jne 3f
+  cmpw $0, 0xfd343e(%edi)
+  je 3f
+  movl ZNTICK, %eax
+  cmpl %eax, 0xfd3444(%edi)
+  jne 3f
+  movl 0x10dff04(,%esi,4), %eax    # its fade-in counter (the drawer shows the text only once it is past 0x28): the new notice inherits it, so no gap
+  movl %eax, ZNCNT
+  movw $0, 0xfd343e(%edi)
+  movb $1, 0xf2a6cc
+3:
+  movl $-1, ZNSLOT                 # the slot the poster will take: the first free one (its own scan)
+  xorl %esi, %esi
+4:
+  imull $0x78, %esi, %edi
+  cmpw $0, 0xfd343e(%edi)
+  jne 5f
+  movl %esi, ZNSLOT
+  jmp 6f
+5:
+  incl %esi
+  cmpl $5, %esi
+  jb 4b
+6:
+  movl 0xf9c0f4, %eax
+  movl %eax, ZNTICK
+  pushl ZOOMP
+  pushl $ZFMT
+  pushl $0x916af8
+  CALLABS 0x5cb68e                 # sprintf
+  addl $12, %esp
+  pushl $0
+  pushl $0
+  pushl $0x3e8
+  CALLABS 0x5231e0
+  addl $12, %esp
+  movl ZNCNT, %eax
+  movl ZNSLOT, %esi
+  testl %eax, %eax
+  js 7f
+  testl %esi, %esi
+  js 7f
+  imull $0x78, %esi, %edi          # only if the poster really took that slot (notices may be off)
+  cmpw $0x3e8, 0xfd3438(%edi)
+  jne 7f
+  cmpw $0, 0xfd343e(%edi)
+  je 7f
+  movl ZNTICK, %edx
+  cmpl %edx, 0xfd3444(%edi)
+  jne 7f
+  movl %eax, 0x10dff04(,%esi,4)
+7:
+  popal
+  ret
+
+# window title again with the last arguments (adds the zoom level)
+ZTitle:
+  cmpl $0, TLAST
+  je 1f
+  pushl TLAST+12
+  pushl TLAST+8
+  pushl TLAST+4
+  pushl TLAST
+  call Title
+  addl $16, %esp
+1:
+  ret
+
+# in: eax = +1 (zoom in) or -1.  Moves ZOOMP one level, never below what the view caps allow.
+ZStep:
+  pushal
+  movl ZOOMP, %ecx
+  xorl %esi, %esi
+1:
+  cmpl ZLEVELS(,%esi,4), %ecx
+  jbe 2f
+  incl %esi
+  cmpl $ZN-1, %esi
+  jb 1b
+2:
+  addl %eax, %esi
+  js 9f
+  cmpl $ZN, %esi
+  jae 9f
+  movl ZLEVELS(,%esi,4), %edx
+  pushl %edx
+  pushl ZARGS+20
+  pushl ZARGS+16
+  CALLABS C_ZMIN
+  addl $8, %esp
+  popl %edx
+  cmpl %eax, %edx
+  jb 9f
+  movl %edx, ZNEWP
+  call ZRect                        # keep the view's centre fixed: move the camera by the half of the change of the view
+  shrl $1, %eax
+  subl ZARGS+12, %edx
+  shrl $1, %edx
+  pushl $ZDR
+  pushl $ZDC
+  pushl %edx
+  pushl %eax
+  pushl ZNEWP
+  pushl ZOOMP
+  CALLABS C_ZSHIFT
+  addl $24, %esp
+  movl ZDC, %eax
+  addl %eax, 0xda2f64
+  movl ZDR, %eax
+  addl %eax, 0xda2f68
+  movl ZNEWP, %eax
+  movl %eax, ZOOMP
+  call ZTitle
+  call ZNotify
+9:
+  popal
+  ret
+
+# bisect aid (ZEUS_NOC=1 build): the C module is never called
+cm_off:
+  xorl %eax, %eax
+  ret
+
+.balign 16
+cmod:
+@@CMOD@@
+
+.balign 16
+end:
+# exported offsets (relative to start) so the builder can compute hook targets
+.globl dummy
+dummy:

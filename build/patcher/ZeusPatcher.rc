@@ -1,0 +1,21 @@
+#include <winver.h>
+1 24 "ZeusPatcher.manifest"
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "ProductName", "Zeus + Poseidon Widescreen Patch"
+      VALUE "FileDescription", "Zeus + Poseidon Widescreen Patch installer"
+      VALUE "FileVersion", "1.0"
+      VALUE "ProductVersion", "1.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END
