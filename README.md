@@ -88,15 +88,19 @@ Saved games, `Zeus.res` (resolution) and `Zeus.keys` (key bindings) are not touc
 
 Every PNG in `Data\Images` is one picture that the game scales to cover the screen. You can replace one with your own 8-bit RGB or RGBA, non-interlaced PNG. A missing or unreadable file makes the game use its own picture for that screen.
 
-## Known limitations
-
-- Developed and tested under Wine (CrossOver) on macOS. It has not been tested on real Windows yet.
-- At 1280x1024 the world map is wider than the screen and is cut off at one side.
-- On a Mac under Wine, Export City Image saves to the macOS Desktop.
-
 ## Source code
 
 The source of the installer and of the game patch is in this repository. [BUILDING.md](BUILDING.md) explains how to rebuild both from the original files and compare them with the release byte for byte, and what the code does and does not touch.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome.
+
+- **Bugs and ideas:** open an [issue](https://github.com/andrehamon/zeus-qol/issues). For a bug, say which resolution you were using, whether you run Windows or Wine, and attach `ZeusPatcher.log` if the problem is with the installer.
+- **Code:** fork the repository, make your change in `build/`, rebuild with the steps in [BUILDING.md](BUILDING.md), run `python3 build/test_mapcomp.py`, and open a pull request. Say what you changed and how you tested it in game.
+- **Artwork, maps and video:** these are not in the repository. If you want to change them, open an issue first.
+
+By contributing you agree that your code is released under the same licence as the rest of the source.
 
 ## Licence
 
