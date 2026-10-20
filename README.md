@@ -11,9 +11,9 @@ You need your own copy of the game. This patch contains no game files; it change
 ## Features
 
 - **Widescreen.** 14 resolutions from 1024x768 to 2560x1600, switchable in game under Options > Display options (F7 for the next one, Shift+F7 for the previous one, F6 for 800x600). The choice is remembered.
-- **Interface.** Sidebars and top bar are stretched to the new screen height and width.
+- **Interface.** Sidebars and top bar are extended to the new screen height and width.
 - **World maps.** One high resolution picture per map, scaled to fill the map screen at any resolution. Cities, routes and click areas follow the scale.
-- **Menu and load screens.** Full-screen pictures for the main menus, mission introduction, victory and defeat screens and all load screens, scaled to cover the screen without bars.
+- **Menu and load screens.** The original artwork has been re-rendered and upscaled using AI. Full-screen pictures for the main menus, mission introduction, victory and defeat screens and all load screens, scaled to cover the screen without bars.
 - **Launch video.** A 3852x2070 version of the intro, scaled to the game window. The original videos stay in place and are used if the file is removed.
 - **City zoom.** Mouse wheel over the map, 50% to 200%. The window title shows the current level.
 - **Keyboard Controls.** Options > Keyboard Controls lets you remap map scrolling (WASD or arrow keys), building and map rotation, pause, overlay, overview and the ten control panel tabs.
