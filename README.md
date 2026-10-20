@@ -44,6 +44,9 @@ You need your own copy of the game. This patch contains no game files; it change
 ![Options > Keyboard Controls](docs/images/keyboard-controls.png)
 *Options > Keyboard Controls.*
 
+![A city exported with File > Export City Image](docs/images/export-city-image.png)
+*File > Export City Image saves the whole scrollable city as one PNG (this one is 6718x3285).*
+
 ## Artwork
 
 The 12 load screen pictures (4 for Zeus, 8 for Poseidon) are in [`artwork/load-screens`](artwork/load-screens), full size at about 3840x2400, as PNG files. Use them as wallpapers or for anything else you like.
