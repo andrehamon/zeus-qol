@@ -51,7 +51,7 @@ You need your own copy of the game. This patch contains no game files; it change
 
 ## Artwork
 
-The 12 load screen pictures (4 for Zeus, 8 for Poseidon) are in [`artwork/load-screens`](artwork/load-screens), full size at about 3840x2400, as PNG files. Use them as wallpapers or for anything else you like.
+The 12 load screen pictures (4 for Zeus, 8 for Poseidon) are in [`artwork/load-screens`](artwork/load-screens), and the two registry screens (Zeus and Poseidon) are in [`artwork/registry`](artwork/registry). All are full size at about 3840x2400, as PNG files. Use them as wallpapers or for anything else you like.
 
 ## Requirements
 
