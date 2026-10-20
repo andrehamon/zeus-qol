@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/logo.png" width="360" alt="Zeus QOL"></p>
+
 # Zeus QOL
 
 A quality-of-life patch for *Zeus: Master of Olympus* with the *Poseidon* expansion (GOG version). It adds widescreen resolutions up to 2560x1600, higher resolution menu and map art, city zoom, remappable keys and a city image export.
@@ -15,6 +17,34 @@ You need your own copy of the game. This patch contains no game files; it change
 - **Keyboard Controls.** Options > Keyboard Controls lets you remap map scrolling (WASD or arrow keys), building and map rotation, pause, overlay, overview and the ten control panel tabs.
 - **Export City Image.** File > Export City Image saves the whole scrollable city as a PNG on your Desktop. The game asks for the file name.
 - The widescreen animation fix for gods and urchin collectors.
+
+## Screenshots
+
+All screenshots were taken at 1680x1050.
+
+![The main menu with the new full-screen art](docs/images/main-menu-upscaled-art.png)
+*Main menu with the full-screen art.*
+
+![The Zeus roster screen](docs/images/zeus-upscaled-art.png)
+*Zeus roster screen.*
+
+![The Poseidon roster screen](docs/images/poseidon-upscaled-art.png)
+*Poseidon roster screen.*
+
+![A load screen](docs/images/new-loading-art.png)
+*A load screen.*
+
+![World map filling the map screen](docs/images/updated-map-scaling.png)
+*World map scaled to fill the map screen.*
+
+![A city zoomed out to 50 percent](docs/images/50-percent-zoom.png)
+*City zoomed out to 50%. The notice and the window title show the zoom level.*
+
+![Options > Display options](docs/images/display-options.png)
+*Options > Display options lists every resolution.*
+
+![Options > Keyboard Controls](docs/images/keyboard-controls.png)
+*Options > Keyboard Controls.*
 
 ## Requirements
 
