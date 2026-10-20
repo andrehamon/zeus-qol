@@ -1,5 +1,7 @@
 <p align="center"><img src="docs/images/logo.png" width="360" alt="Zeus QOL"></p>
 
+<p align="center"><a href="https://www.buymeacoffee.com/andrehamon"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&amp;emoji=&amp;slug=andrehamon&amp;button_colour=FFDD00&amp;font_colour=000000&amp;font_family=Cookie&amp;outline_colour=000000&amp;coffee_colour=ffffff" alt="Buy me a coffee"></a></p>
+
 # Zeus QOL
 
 A quality-of-life patch for *Zeus: Master of Olympus* with the *Poseidon* expansion (GOG version). It adds widescreen resolutions up to 2560x1600, higher resolution menu and map art, city zoom, remappable keys and a city image export.
@@ -96,4 +98,4 @@ Every PNG in `Data\Images` is one picture that the game scales to cover the scre
 
 If you like the patch, you can support its development:
 
-<a href="https://www.buymeacoffee.com/andrehamon"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=andrehamon&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
+<a href="https://www.buymeacoffee.com/andrehamon"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&amp;emoji=&amp;slug=andrehamon&amp;button_colour=FFDD00&amp;font_colour=000000&amp;font_family=Cookie&amp;outline_colour=000000&amp;coffee_colour=ffffff" alt="Buy me a coffee"></a>
