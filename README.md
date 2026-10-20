@@ -44,6 +44,10 @@ You need your own copy of the game. This patch contains no game files; it change
 ![Options > Keyboard Controls](docs/images/keyboard-controls.png)
 *Options > Keyboard Controls.*
 
+## Artwork
+
+The 12 load screen pictures (4 for Zeus, 8 for Poseidon) are in [`artwork/load-screens`](artwork/load-screens), full size at about 3840x2400, as PNG files. Use them as wallpapers or for anything else you like.
+
 ## Requirements
 
 - Zeus + Poseidon from GOG, with `Zeus.exe` version 2.1.4.0. The patcher checks this and refuses other versions (Steam and disc versions are not supported).
