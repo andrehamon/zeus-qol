@@ -105,7 +105,7 @@ It only writes inside the game folder and writes `ZeusPatcher.log` next to itsel
 Facts about the result that you can check yourself:
 
 - The patched exe imports exactly the same DLLs and functions as the original. To check, compare `pefile.PE(path).DIRECTORY_ENTRY_IMPORT` of both files (`pip install pefile`).
-- The new code calls Windows only through the original exe's own import slots: `CreateFileA`, `ReadFile`, `WriteFile`, `CloseHandle`, `GetFileSize`, `GetFileAttributesA`, `VirtualAlloc`, `VirtualFree`, `GetTickCount`, `GetEnvironmentVariableA`, `LoadLibraryA` and `GetProcAddress` (used to find the Desktop folder through `SHGetFolderPathA`), `SendMessageA`, `PostMessageA`, `GetAsyncKeyState`, `GetSystemMetrics` and the Bink `BinkCopyToBuffer`. There is no networking and no process creation.
+- The new code calls Windows only through the original exe's own import slots. Scanning the built `.wpat` section for references into the original import table finds exactly these 16: `CreateFileA`, `ReadFile`, `WriteFile`, `CloseHandle`, `GetFileSize`, `GetFileAttributesA`, `VirtualAlloc`, `VirtualFree`, `GetEnvironmentVariableA`, `LoadLibraryA` and `GetProcAddress` (used to find the Desktop folder through `SHGetFolderPathA`), `SendMessageA`, `PostMessageA`, `GetAsyncKeyState`, `GetSystemMetrics` and the Bink `BinkCopyToBuffer`. There is no networking and no process creation.
 - It reads PNG files from `Data\Images` and `Data\Maps`, the video `Binks\Zeus_Intro_HD.bik`, and its two settings files `Zeus.res` (resolution) and `Zeus.keys` (key bindings) next to `Zeus.exe`. Export City Image writes a PNG to your Desktop.
 
 ## Tests
