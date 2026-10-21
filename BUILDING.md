@@ -88,6 +88,27 @@ shasum -a 256 from_delta.exe dist/Zeus.exe
 
 `zcli sha <file>` prints a SHA-256. `payload/manifest.txt` lists every file the installer writes with its SHA-256. The installer refuses to continue if anything does not match.
 
+## The launch video
+
+`Binks\Zeus_Intro_HD.bik` is not built from this repo. It is made from the game's own `Zeus_Intro_HiQ.bik`, which is 640x480 with the picture letterboxed inside the frame (the picture is `crop=640:344:0:68`). Two steps:
+
+1. Cut off the bars, scale once to 3852x2070 and keep the sound. This writes an MP4 that RAD Video Tools can read:
+
+```
+ffmpeg -i Zeus_Intro_HiQ.bik -vf "crop=640:344:0:68,scale=3852:2070:flags=lanczos,format=yuv420p" \
+  -c:v libx264 -crf 12 -preset medium -r 24 -c:a aac -b:a 320k -movflags +faststart intro.mp4
+```
+
+2. Convert the MP4 to Bink 1 (`.bik`, header `BIKi`) with RAD Video Tools, with the audio track switched on. Bink 2 (`.bk2`) cannot be played by the game's `binkw32.dll`.
+
+The file in release 1.0.1 has one video stream (3852x2070, 24 fps) and one audio stream (44.1 kHz stereo), 123.8 seconds, SHA-256:
+
+```
+a6c101cdfbfd4fee50c6d455f358ff8b2dcdb3e27c604b848e2b079b5df71016
+```
+
+Check a file with `ffprobe Zeus_Intro_HD.bik`: it must list the audio stream. Release 1.0 shipped a video without one and played the intro silently ([#1](https://github.com/andrehamon/zeus-qol/issues/1)).
+
 ## Reading the source
 
 **The installer** is `build/patcher/ZeusPatcher.c` (about 440 lines) plus `zcore.c` (SHA-256 and the delta format, 86 lines). The delta format is described in `zcore.h`. What it does, in order:
